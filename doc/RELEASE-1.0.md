@@ -12,3 +12,5 @@
 验证依据：此前 r9 视频约 31 分钟、网页约 32 分钟采样，正常停止恢复；两类进程退出恢复、导入拒绝及 PC 制作链通过。更长测试按用户要求取消。完整范围见 [兼容性说明](COMPATIBILITY.md)。
 
 安装请看 [INSTALL](INSTALL.md)，首次制作请看 [新手教程](BEGINNER.md)，自行编写网页请看 [网页作者教程](WEB-AUTHORING.md)。
+
+PC 工具修订 tools-r3：内置 Windows x64 精简 FFmpeg 9.0.1 及完整对应源码、构建脚本、许可证。完整解压后无需单独安装 FFmpeg 或配置路径，仍需 Node.js。替代 tools.zip / tools-r2.zip，手机 SISX 不变。

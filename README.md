@@ -4,7 +4,7 @@ Symbian Belle 动态壁纸：在原生桌面图标与小组件下面播放视频
 
 ## 下载与使用
 
-在本仓库 Releases 下载 `BelleWall-1.0.0.sisx` 和 `BelleWall-1.0.0-tools.zip`。仓库和 Release 保持私有，只有获授权账号可访问。
+在本仓库 Releases 下载 `BelleWall-1.0.0.sisx` 和 `BelleWall-1.0.0-tools-r3.zip`。仓库和 Release 保持私有，只有获授权账号可访问。
 
 - [安装与卸载](doc/INSTALL.md)
 - [新手：视频／预渲染 MPKG 制作壁纸](doc/BEGINNER.md)
@@ -13,7 +13,7 @@ Symbian Belle 动态壁纸：在原生桌面图标与小组件下面播放视频
 - [兼容性与已知限制](doc/COMPATIBILITY.md)
 - [1.0 发布说明](doc/RELEASE-1.0.md)
 
-制作工具本地运行，需要 Node.js，视频转换还需 FFmpeg。网页通过 bellewallStep(activeMs) 提供帧更新；暂停期间页面可以释放并重建。当前手机供帧约 10 fps，素材格式可表达更广的尺寸和帧率。
+制作工具本地运行，需要 Node.js；Windows x64 工具包已内置 FFmpeg，无需单独安装或设置路径。网页通过 bellewallStep(activeMs) 提供帧更新；暂停期间页面可以释放并重建。当前手机供帧约 10 fps，素材格式可表达更广的尺寸和帧率。
 
 产品名称不限定机型，但底层仍有固件与权限检查，请先读兼容性说明。1.0 新封装完成离线校验，实机结果来自已验收运行基线；更长测试按用户要求取消。
 
