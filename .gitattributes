@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.dll -text
+*.rsc -text
+*.sis -text
+*.sisx -text
+*.png -text
+*.mp4 -text
+*.sywp -text

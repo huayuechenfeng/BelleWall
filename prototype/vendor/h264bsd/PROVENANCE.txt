@@ -1,0 +1,4 @@
+Source: https://github.com/oneam/h264bsd
+Pinned commit: 42bcb5d753ad86d84903354bf3c68423c28adb7b
+Only upstream src/ is included, unchanged. Apache-2.0 decoder / MIT additions;
+see LICENSE.md and per-file notices. BelleWall integration is separate.

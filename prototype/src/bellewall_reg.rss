@@ -1,0 +1,10 @@
+#include <appinfo.rh>
+UID2 KUidAppRegistrationResourceFile
+UID3 0xe7b31101
+RESOURCE APP_REGISTRATION_INFO
+    {
+    app_file="bellewall";
+    localisable_resource_file="\\resource\\apps\\bellewall";
+
+
+    }

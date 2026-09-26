@@ -1,0 +1,5 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=180"><style>html,body{margin:0;width:180px;height:320px;overflow:hidden;background:#081423;color:#e8fff5;font-family:sans-serif}#time{position:absolute;top:94px;width:180px;text-align:center;font-size:36px}#date{position:absolute;top:137px;width:180px;text-align:center;font-size:12px}#dot{position:absolute;top:230px;width:18px;height:18px;border-radius:9px;background:#19d296}</style></head><body><div id="time"></div><div id="date"></div><div id="dot"></div><script>
+// Host calls only while active. No JS timers, networking or CSS animation.
+// Rebuild resets DOM state; activeMs is retained by the host across pause.
+function bellewallStep(activeMs){var d=new Date();function two(v){return v<10?'0'+v:''+v;}document.getElementById('time').innerHTML=two(d.getHours())+':'+two(d.getMinutes())+':'+two(d.getSeconds());document.getElementById('date').innerHTML=d.getFullYear()+'-'+two(d.getMonth()+1)+'-'+two(d.getDate());document.getElementById('dot').style.left=(81+65*Math.sin(activeMs/1800))+'px';}
+</script></body></html>

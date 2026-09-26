@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
+const root=path.resolve(__dirname,'../..'),dist=path.join(root,'dist'),out=path.join(root,'build/session-helper'),sdk=process.env.BELLE_SDK||'C:/QtSDK/Symbian/SDKs/SymbianSR1Qt474';
+const accepted=path.join(dist,'daily-candidate-20260920-r3');
+if(!process.argv[2])throw Error('Pass the freshly built longrun renderer checkpoint');
+const longrun=path.resolve(process.argv[2]);
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+for(const row of fs.readFileSync(path.join(accepted,'SHA256SUMS.txt'),'utf8').trim().split(/\r?\n/))if(sha(path.join(accepted,row.slice(66)))!==row.slice(0,64))throw Error('Accepted renderer archive changed');
+for(const row of fs.readFileSync(path.join(longrun,'SHA256SUMS.txt'),'utf8').trim().split(/\r?\n/))if(sha(path.join(longrun,row.slice(66)))!==row.slice(0,64))throw Error('Longrun renderer archive changed');
+for(const name of ['bellerenderlongrun.dll','bellerenderlongrun.rsc'])fs.copyFileSync(path.join(longrun,name),path.join(dist,name));
+for(const name of ['bellerendercandidate.dll','bellerendercandidate.rsc'])fs.copyFileSync(path.join(accepted,name),path.join(dist,name));
+fs.mkdirSync(out,{recursive:true});
+const files=[['bellerendercandidate.dll','C:\\sys\\bin\\bellerendercandidate.dll'],['bellerendercandidate.rsc','C:\\resource\\plugins\\bellerendercandidate.rsc'],['bellerenderhost.exe','C:\\sys\\bin\\bellerenderhost.exe'],['bellerenderlongrun.dll','C:\\sys\\bin\\bellerenderlongrun.dll'],['bellerenderlongrun.rsc','C:\\resource\\plugins\\bellerenderlongrun.rsc']];
+fs.writeFileSync(path.join(out,'helper.pkg'),'&EN\n#{"BelleWall Renderer Helper"},(0xE7B31106),1,0,0\n%{"BelleWall Research"}\n:"BelleWall Research"\n'+files.map(([n,to])=>'"'+path.join(dist,n).replaceAll('\\','/')+'"-"'+to+'"').join('\n')+'\n');
+for(const [exe,args] of [['makesis.exe',['helper.pkg','helper.sis']],['signsis.exe',['-s','helper.sis',path.join(dist,'bellerender-selfsigned.sisx'),path.join(root,'build/signing/prototype.cer'),path.join(root,'build/signing/prototype.key')]]]){const r=cp.spawnSync(path.join(sdk,'epoc32/tools',exe),args,{cwd:out,encoding:'utf8',windowsHide:true});if(r.error||r.status)throw Error(r.error||r.stdout+r.stderr);}
+const dump=path.join(out,'extracted');fs.mkdirSync(dump,{recursive:true});const check=cp.spawnSync(path.join(sdk,'epoc32/tools/dumpsis.exe'),['-x','-d',dump,path.join(dist,'bellerender-selfsigned.sisx')],{encoding:'utf8',windowsHide:true});if(check.error||check.status)throw Error(check.error||check.stdout+check.stderr);
+files.forEach(([name],i)=>{if(sha(path.join(dist,name))!==sha(path.join(dump,'file'+i)))throw Error('Helper SIS payload mismatch');});
+console.log('1.0.0 helper: longrun v2 plus unchanged r3 recovery files; all 5 payloads match.');

@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('fs'),path=require('path'),crypto=require('crypto'),cp=require('child_process');
+const {prepare}=require('./prepare-sywp.cjs'),{read,frameStream}=require('./sywp.cjs');
+const root=path.resolve(__dirname,'../..'),out=process.argv[3]?path.resolve(process.argv[3]):path.join(root,'build/sywp-verification');
+fs.mkdirSync(out,{recursive:true});
+const input=process.argv[2]||'C:/Users/chihoko/Downloads/3690417937.mpkg';
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+const cases=[{width:180,height:320,fps:10,frames:300},{width:360,height:640,fps:30,frames:30,speed:2,x:0.2,y:0.8},{width:640,height:480,fps:20,frames:20,orientation:'landscape'}];
+const reports=cases.map((options,i)=>{const file=path.join(out,'case-'+i+'.sywp');if(fs.existsSync(file))throw Error('Use a fresh verification output directory');const conversion=prepare(input,file,options),{manifest,payload}=read(file),size=manifest.stride*manifest.height;const distinct=new Set(Array.from({length:manifest.frames},(_,n)=>sha(payload.subarray(n*size,(n+1)*size)))).size;if(distinct<2||manifest.frames!==options.frames)throw Error('Unexpected conversion length/static output');const stream=frameStream(manifest,payload);if(i===0)fs.writeFileSync(path.join(out,'video-frames.bin'),stream);return {file:path.basename(file),options,...conversion,bytes:fs.statSync(file).size,sha256:sha(fs.readFileSync(file)),distinctFrames:distinct,loopBoundaryOffsets:[48+(manifest.frames-1)*size,48]};});
+const ffmpeg=path.join(process.env.FFMPEG_BIN||path.join(root,'build/ffmpeg-9.0.1-essentials_build/bin'),'ffmpeg.exe');const version=cp.spawnSync(ffmpeg,['-version'],{encoding:'utf8'});const report={input,sourceSha256:sha(fs.readFileSync(input)),ffmpeg:version.stdout.split('\n')[0],cases:reports,status:'offline-conversion-validated',devicePlayback:'not run'};fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

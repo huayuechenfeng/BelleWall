@@ -1,0 +1,17 @@
+#define BELLEWALL_RESOURCE_BUILD
+#include "rendereridentity.h"
+#include <ecom/registryinfo.rh>
+RESOURCE REGISTRY_INFO registry
+{
+    dll_uid = BW_RENDER_DLL_UID;
+    interfaces = { INTERFACE_INFO {
+        interface_uid = 0x200286df;
+        implementations = { IMPLEMENTATION_INFO {
+            implementation_uid = BW_RENDER_IMPL_UID;
+            version_no = 1;
+            display_name = "BelleWall longrun renderer";
+            default_data = BW_RENDER_TYPE;
+            opaque_data = "session-v2-pending-device";
+        } };
+    } };
+}

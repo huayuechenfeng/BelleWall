@@ -1,0 +1,40 @@
+'use strict';
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
+const root=path.resolve(__dirname,'../..'),sdk=process.env.BELLE_SDK||'C:/QtSDK/Symbian/SDKs/SymbianSR1Qt474',gcc=process.env.BELLE_GCCE||'C:/QtSDK/Symbian/tools/gcce4';
+const hostOnly=process.argv.includes('--host-only');
+const longrun=process.argv.includes('--longrun');
+if(hostOnly===longrun)throw Error('Choose --host-only (accepted DLL retained) or --longrun (new isolated DLL).');
+const sidProbe=process.argv.includes('--sid-probe'),widgetRegistration=process.argv.includes('--widget-registration');
+if(sidProbe)throw Error('SID probe disabled: hspsdefrep construction writes system properties; use offline ROM analysis.');
+if(widgetRegistration)throw Error('Isolated longrun registration must be validated separately; no legacy ODT is packaged.');
+const destination=process.argv.indexOf('--out');
+const out=path.join(root,hostOnly?'build/render-probe':'build/render-longrun'),dist=hostOnly?path.join(root,'dist'):path.resolve(destination<0?path.join(root,'dist/renderer-longrun-offline-20260925'):process.argv[destination+1]),inc=sdk+'/epoc32/include',lib=sdk+'/epoc32/release/armv5/lib';
+if(longrun&&fs.existsSync(dist))throw Error('Renderer checkpoint exists; choose another --out path.');
+fs.mkdirSync(out,{recursive:true});fs.mkdirSync(dist,{recursive:true});require('./ensure-signing.cjs')(root);
+function run(exe,args){const r=cp.spawnSync(exe,args,{cwd:out,encoding:'utf8'});fs.appendFileSync(path.join(out,'build.log'),JSON.stringify({exe,args})+'\n'+r.stdout+r.stderr);if(r.error||r.status)throw Error(r.error||r.stdout+r.stderr);return r.stdout;}
+const flags=['-fpermissive','-c','-O2','-g','-marm','-march=armv6','-mfloat-abi=softfp','-mfpu=vfp','-msoft-float','-fexceptions','-fno-unit-at-a-time','-fno-strict-aliasing','-D__SYMBIAN32__','-D__EPOC32__','-D__GCCE__','-D__MARM__','-D__EABI__','-D__MARM_ARMV5__','-D_UNICODE','-D__SUPPORT_CPP_EXCEPTIONS__','-D__LEAVE_EQUALS_THROW__','-DSYMBIAN_ENABLE_SPLIT_HEADERS','-include',inc+'/gcce/gcce.h',...['','/platform','/mw','/platform/mw','/platform/app'].map(p=>'-I'+inc+p)];
+for(const [source,dll] of (hostOnly?[['renderhost',false]]:[['renderprobe',true]])){
+ run(gcc+'/bin/arm-none-symbianelf-g++.exe',['-I'+path.join(root,'prototype/vendor/symbian-homescreen/hspswrapper/inc'),'-I'+path.join(root,'prototype/vendor/symbian-homescreen/inc'),...flags,dll?'-D__DLL__':'-D__EXE__',path.join(root,'prototype/src/'+source+'.cpp'),'-o',source+'.o']);
+ const libs=['sysutil','hal','hwrmlightclient','hsccapiclient','hscontentinfo','xn3domdocument','xn3odt','euser','efsrv','ws32','eikcore','apparc','cone','fbscli','gdi','ecom','extrenderingplugin','hspsdefrep','hspsresource','hspswrapper','hspsclient','hspsrequestclient','hspsodt','hspsresult','estor','liwservicehandler','centralrepository','drtaeabi','dfpaeabi','scppnwdl'];
+ run(gcc+'/bin/arm-none-symbianelf-ld.exe',['--target1-rel','-nostdlib','--default-symver',...(dll?['--shared']:['--no-undefined']),'-Ttext','0x8000','-Tdata','0x400000','--entry',dll?'_E32Dll':'_E32Startup','-u',dll?'_E32Dll':'_E32Startup','-o',source+'.elf',sdk+'/epoc32/release/armv5/urel/'+(dll?'edll':'eexe')+'.lib',source+'.o','--start-group',...libs.map(n=>lib+'/'+n+'.dso'),sdk+'/epoc32/release/armv5/urel/usrt3_1.lib',gcc+'/arm-none-symbianelf/lib/libsupc++.a',gcc+'/lib/gcc/arm-none-symbianelf/4.4.1/libgcc.a','--end-group']);
+ if(dll)fs.writeFileSync(path.join(out,'renderprobe.def'),'EXPORTS\n _Z24ImplementationGroupProxyRi @ 1 NONAME\n');
+ run(sdk+'/epoc32/tools/elf2e32.exe',['--elfinput='+source+'.elf','--output='+path.join(dist,dll?'bellerenderlongrun.dll':'bellerenderhost.exe'),'--uid1='+(dll?'0x10000079':'0x1000007a'),'--uid2='+(dll?'0x10009d8d':'0'),'--uid3='+(dll?'0xe7b31136':'0xe7b31108'),'--sid='+(dll?'0xe7b31136':'0xe7b31108'),'--vid=0','--targettype='+(dll?'PLUGIN':'EXE'),'--capability='+(dll?'All-TCB':'ReadUserData+WriteUserData+ReadDeviceData+WriteDeviceData+SwEvent'),'--heap=0x10000,0x200000','--stack=0x10000','--linkas='+(dll?'bellerenderlongrun.dll':'bellerenderhost.exe'),'--libpath='+lib,'--fpu=softvfp',...(dll?['--definput=renderprobe.def','--defoutput=renderprobe-frozen.def','--dso=renderprobe.dso']:[])]);
+}
+if(hostOnly){console.log('Renderer helper built; immutable renderer DLL was not rebuilt.');return;}
+run(gcc+'/bin/arm-none-symbianelf-gcc.exe',['-E','-P','-x','c++','-I'+inc,path.join(root,'prototype/src/renderprobe.rss'),'-o','renderprobe.rpp']);
+run(sdk+'/epoc32/tools/rcomp.exe',['-u','-srenderprobe.rpp','-o'+path.join(dist,'bellerenderlongrun.rsc'),'-hrenderprobe.rsg']);
+const files=[['bellerenderlongrun.dll','C:\\sys\\bin\\bellerenderlongrun.dll'],['bellerenderlongrun.rsc','C:\\resource\\plugins\\bellerenderlongrun.rsc']];
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+fs.writeFileSync(path.join(out,'render.pkg'),'&EN\n#{"BelleWall Longrun Renderer Candidate"},(0xE7B31136),0,4,1\n%{"BelleWall Research"}\n:"BelleWall Research"\n'+files.map(([f,to])=>'"'+path.join(dist,f).replaceAll('\\','/')+'"-"'+to+'"').join('\n')+'\n');
+run(sdk+'/epoc32/tools/makesis.exe',['render.pkg','render.sis']);run(sdk+'/epoc32/tools/signsis.exe',['-s','render.sis',path.join(dist,'bellerenderlongrun-selfsigned.sisx'),path.join(root,'build/signing/prototype.cer'),path.join(root,'build/signing/prototype.key')]);
+const extracted=path.join(out,'extracted');fs.mkdirSync(extracted,{recursive:true});run(sdk+'/epoc32/tools/dumpsis.exe',['-x','-d',extracted,path.join(dist,'bellerenderlongrun-selfsigned.sisx')]);
+for(let i=0;i<files.length;i++)if(sha(path.join(dist,files[i][0]))!==sha(path.join(extracted,'file'+i)))throw Error('Renderer SIS payload mismatch');
+if(fs.readFileSync(path.join(dist,files[0][0])).readUInt32LE(8)!==0xe7b31136)throw Error('Renderer DLL identity mismatch');
+const capabilities=run(sdk+'/epoc32/tools/dumpsis.exe',['-l',path.join(dist,'bellerenderlongrun-selfsigned.sisx')]);if(!capabilities.includes('Executable1: capabilities matched'))throw Error('Renderer capabilities mismatch');
+fs.writeFileSync(path.join(dist,'capabilities.txt'),capabilities);
+const report={status:'offline-built-not-registered-or-device-tested',sessionVersion:2,configurationUid:'0x70031129',interfaceUid:'0x200286df',dllUid:'0xe7b31136',implementationUid:'0xe7b31137',type:'bellewall-render-longrun',logLimitBytes:262144,logFiles:2,payloadsChecked:2,files:Object.fromEntries([...files.map(f=>f[0]),'bellerenderlongrun-selfsigned.sisx'].map(n=>[n,sha(path.join(dist,n))]))};
+fs.writeFileSync(path.join(dist,'validation.json'),JSON.stringify(report,null,2));
+fs.mkdirSync(path.join(dist,'source'));for(const n of ['renderprobe.cpp','renderprobe.rss','renderlog.h','sessionclock.h','backgroundinspect.h','backgroundprofile.h','redrawtransport.h','candidatesession.h','rendereridentity.h'])fs.copyFileSync(path.join(root,'prototype/src',n),path.join(dist,'source',n));fs.copyFileSync(__filename,path.join(dist,'source','build-render-probe.cjs'));
+fs.writeFileSync(path.join(dist,'README.md'),'# Isolated longrun renderer — offline only\n\nNew DLL UID E7B31136, implementation E7B31137, type bellewall-render-longrun. No desktop registration or attachment is included. The 0.4.1 product builder embeds these files in its paired helper SIS and retains r3 for legacy recovery. Install only the three top-level product packages, not this standalone renderer SIS as well. Session version 2, matching helper metadata, registration and restoration require staged device validation.\n\nCounters use 64-bit accumulation; elapsed time uses the monotonic session clock; diagnostic logging keeps at most two 256 KiB files and skips failed/busy writes. This package does not prove longrun stability.\n');
+function walk(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(dir,e.name)):[path.join(dir,e.name)]);}
+fs.writeFileSync(path.join(dist,'SHA256SUMS.txt'),walk(dist).sort().map(p=>sha(p)+'  '+path.relative(dist,p).replaceAll('\\','/')).join('\n')+'\n');console.log(JSON.stringify(report,null,2));

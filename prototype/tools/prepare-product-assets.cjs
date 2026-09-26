@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
+const sywp=require('./sywp.cjs'),{prepare}=require('./prepare-sywp.cjs');
+const root=path.resolve(__dirname,'../..'),out=path.resolve(process.argv[2]||path.join(root,'build/product-assets'));
+if(fs.existsSync(out))throw Error('Asset directory exists; preserve it and select another');fs.mkdirSync(out,{recursive:true});
+const bin=process.env.FFMPEG_BIN||path.join(root,'build/ffmpeg-9.0.1-essentials_build/bin'),ffmpeg=path.join(bin,process.platform==='win32'?'ffmpeg.exe':'ffmpeg');
+const mp4=path.join(out,'demo.mp4'),r=cp.spawnSync(ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','testsrc2=size=180x320:rate=10:duration=3','-an','-c:v','libx264','-profile:v','baseline','-pix_fmt','yuv420p','-movflags','+faststart',mp4],{encoding:'utf8'});if(r.error||r.status)throw Error(r.error||r.stderr);
+prepare(mp4,path.join(out,'video.sywp'),{title:'BelleWall 色彩测试',width:180,height:320,fps:10,frames:30});
+const clock=fs.readFileSync(path.join(root,'prototype/content/clock.html'));
+fs.writeFileSync(path.join(out,'web.sywp'),sywp.encode({format:'sywp',version:1,title:'BelleWall 实时时钟',kind:'web',width:180,height:320,loop:true,pause:'resume',entry:'index.html',display:sywp.display},clock));
+const corrupt=fs.readFileSync(path.join(out,'web.sywp'));corrupt[corrupt.length-1]^=1;fs.writeFileSync(path.join(out,'corrupt.sywp'),corrupt);
+fs.writeFileSync(path.join(out,'unsupported.sywp'),sywp.encode({format:'sywp',version:1,title:'横屏兼容性测试',kind:'web',width:640,height:480,loop:true,pause:'resume',entry:'index.html',display:{...sywp.display,orientation:'landscape'}},clock));
+const u32=n=>{const b=Buffer.alloc(4);b.writeUInt32LE(n);return b;},str=s=>{const b=Buffer.from(s);return Buffer.concat([u32(b.length),b]);},items=[['project.json',Buffer.from(JSON.stringify({file:'demo.mp4',type:'video'}))],['demo.mp4',fs.readFileSync(mp4)]];
+let offset=0;const parts=[str('PKGM0014'),u32(items.length)];for(const [name,b]of items){parts.push(str(name),u32(offset),u32(b.length));offset+=b.length;}fs.writeFileSync(path.join(out,'preview.mpkg'),Buffer.concat([...parts,...items.map(x=>x[1])]));
+fs.writeFileSync(path.join(out,'PROVENANCE.md'),'# 演示素材来源\n\n视频由 FFmpeg testsrc2 生成，3 秒、180×320、10 fps；不含第三方壁纸作者素材。网页来自项目 clock.html。preview.mpkg 为本工具合成的测试容器，不宣称由 Wallpaper Engine 导出。corrupt.sywp 与 unsupported.sywp 仅用于拒绝路径测试，不供正常导入。\n');
+console.log(JSON.stringify({directory:out,files:fs.readdirSync(out).map(name=>({name,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(out,name))).digest('hex')}))},null,2));

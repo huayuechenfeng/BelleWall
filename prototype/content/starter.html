@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body { margin:0; width:180px; height:320px; overflow:hidden; background:#101820; }
+canvas { display:block; }
+</style></head><body>
+<canvas id="wall" width="180" height="320"></canvas>
+<script>
+var canvas = document.getElementById('wall');
+var ctx = canvas.getContext('2d');
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function bellewallStep(activeMs) {
+  var now = new Date();
+  ctx.fillStyle = '#101820';
+  ctx.fillRect(0, 0, 180, 320);
+  ctx.fillStyle = '#e4f3ed';
+  ctx.font = '24px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' +
+               pad(now.getSeconds()), 90, 130);
+  var x = 90 + 55 * Math.sin(activeMs / 1200);
+  ctx.fillStyle = '#9de8c6';
+  ctx.beginPath(); ctx.arc(x, 195, 10, 0, Math.PI * 2, false); ctx.fill();
+}
+bellewallStep(0);
+</script></body></html>

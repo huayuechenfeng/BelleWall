@@ -1,0 +1,31 @@
+#ifndef BELLEWALL_RENDERATTACH_H
+#define BELLEWALL_RENDERATTACH_H
+#include "candidatesession.h"
+static TUint candidateWidgetFilter=0,candidateWidgetFound=0;
+static TUint renderSessionVersion=BW_RENDER_SESSION_VERSION;
+static TBuf8<16> RenderConfigText(){TBuf8<16> value;value.NumFixedWidth(BelleRenderer::ConfigUid(renderSessionVersion),EHex,8);value.Insert(0,_L8("0x"));return value;}
+// Only this project's configuration UID may be detached. Never restore an
+// entire desktop configuration over user data.
+static TInt OwnRenderInstancesL(CHspsWrapper& hs,CHspsConfiguration& config,TInt depth,TBool remove){
+    TInt count=0;RPointerArray<CPluginMap>& maps=config.PluginMaps();
+    for(TInt i=maps.Count()-1;i>=0;i--){CPluginMap& map=*maps[i];
+        if(map.PluginUid().CompareF(RenderConfigText())==0){TUint id=0;TLex8 number(map.PluginId());User::LeaveIfError(number.Val(id));if(candidateWidgetFilter&&id!=candidateWidgetFilter)continue;candidateWidgetFound=id;count++;if(remove){TBuf<80> id;id.Copy(map.PluginId());Trace(_L("ATTACH removing exact own instance"));Trace(id);
+            TRenderControlObserver observer;CHsCcApiClient* client=CHsCcApiClient::NewL(&observer);CleanupStack::PushL(client);CHsContentInfo* info=CHsContentInfo::NewLC();info->SetTypeL(_L8("widget"));info->SetUidL(RenderConfigText());info->SetPluginIdL(map.PluginId());info->SetCanBeRemoved(ETrue);MHsContentController* controller=client;TInt result=controller->RemoveWidgetL(*info);CleanupStack::PopAndDestroy(info);CleanupStack::PopAndDestroy(client);
+            if(result==KErrNotFound||result==KErrNotSupported)result=hs.RemovePluginL(map.PluginId());User::LeaveIfError(result);
+        }}
+        else if(depth<2){CHspsConfiguration* child=hs.GetPluginConfigurationL(map.PluginId());if(child){CleanupStack::PushL(child);count+=OwnRenderInstancesL(hs,*child,depth+1,remove);CleanupStack::PopAndDestroy(child);}}
+    }return count;
+}
+static TInt ScanOwnRenderL(TBool remove){CHspsWrapper* hs=CHspsWrapper::NewLC(_L8("271012080"));CHspsConfiguration* app=hs->GetAppConfigurationL();if(!app)User::Leave(KErrNotFound);CleanupStack::PushL(app);TInt count=OwnRenderInstancesL(*hs,*app,0,remove);CleanupStack::PopAndDestroy(app);CleanupStack::PopAndDestroy(hs);return count;}
+static void DetachOwnRenderL(){TInt count=ScanOwnRenderL(ETrue);if(ScanOwnRenderL(EFalse)!=0)User::Leave(KErrCorrupt);TBuf<100> line;line.Format(_L("ATTACH cleanup removed=%d remaining=0"),count);Trace(line);}
+static void GuardRenderWidgetL(TBool manual=EFalse,TBool pages=EFalse){RProcess::Rendezvous(KErrNone);Trace(manual?_L("ATTACH manual guard armed for 60 seconds"):pages?_L("ATTACH pages guard armed for 100 seconds"):_L("ATTACH automatic guard armed for 45 seconds"));User::After(manual?60000000:pages?100000000:45000000);DetachOwnRenderL();Trace(_L("ATTACH independent guard completed"));}
+static void AttachRenderWidgetL(TBool pages=EFalse,TBool managed=EFalse){
+    if(ScanOwnRenderL(EFalse)!=0)User::Leave(KErrInUse);
+    const TUint selectedVersion=renderSessionVersion;renderSessionVersion=1;TInt oldInstances=ScanOwnRenderL(EFalse);renderSessionVersion=selectedVersion;if(oldInstances)User::Leave(KErrInUse);
+    if(!managed){RProcess guard;User::LeaveIfError(guard.Create(RProcess().FileName(),pages?_L("--guard-render-widget-pages"):_L("--guard-render-widget")));TRequestStatus ready;guard.Rendezvous(ready);guard.Resume();User::WaitForRequest(ready);guard.Close();User::LeaveIfError(ready.Int());Trace(pages?_L("ATTACH independent guard ready; 100 second bound"):_L("ATTACH independent guard ready; 45 second bound"));}
+    TRenderControlObserver observer;CHsCcApiClient* client=CHsCcApiClient::NewL(&observer);CleanupStack::PushL(client);MHsContentController* controller=client;CHsContentInfoArray* widgets=CHsContentInfoArray::NewL();CleanupStack::PushL(widgets);User::LeaveIfError(controller->WidgetListL(*widgets));CHsContentInfo* target=0;for(TInt i=0;i<widgets->Array().Count();i++)if(widgets->Array()[i]->Uid().CompareF(RenderConfigText())==0){if(target)User::Leave(KErrCorrupt);target=widgets->Array()[i];}if(!target)User::Leave(KErrNotFound);
+    TBuf<120> line;line.Format(_L("ATTACH content service canAdd=%d"),target->CanBeAdded());Trace(line);if(!target->CanBeAdded())User::Leave(KErrNotReady);TInt result=controller->AddWidgetL(*target);line.Format(_L("ATTACH content AddWidget result=%d"),result);Trace(line);User::LeaveIfError(result);CleanupStack::PopAndDestroy(widgets);CleanupStack::PopAndDestroy(client);
+    if(!managed){User::After(pages?80000000:30000000);DetachOwnRenderL();Trace(_L("ATTACH owner test ended; no wallpaper writes"));}
+}
+static void CandidateWidgetL(const TDesC& args){RMutex operation;User::LeaveIfError(operation.CreateGlobal(_L("BelleWallCandidateWidgetOperation")));CleanupClosePushL(operation);RFs fs;User::LeaveIfError(fs.Connect());CleanupClosePushL(fs);TCandidateRecord record;CandidateReadL(fs,record);if(!CandidateArgsMatch(record,args))User::Leave(KErrPermissionDenied);renderSessionVersion=record.version;TBuf<100> identity;identity.Format(_L("HOST session version=%u config=%08x"),record.version,BelleRenderer::ConfigUid(record.version));Trace(identity);if(args.Find(_L("--candidate-attach"))==0){if(record.version!=BW_RENDER_SESSION_VERSION||record.state!=EBinding||!record.widgetIntent)User::Leave(KErrNotReady);AttachRenderWidgetL(ETrue,ETrue);if(ScanOwnRenderL(EFalse)!=1||!candidateWidgetFound)User::Leave(KErrCorrupt);TCandidateRecord latest;CandidateReadL(fs,latest);if(!CandidateSame(record,latest)||latest.state!=EBinding)User::Leave(KErrNotReady);record=latest;record.widgetId=candidateWidgetFound;CandidateWriteL(fs,record);RChunk live;TCandidateShared* shared=CandidateOpen(live);if(shared&&CandidateSame(record,shared->record))shared->record.widgetId=record.widgetId;live.Close();}else if(args.Find(_L("--candidate-detach"))==0){if(record.state!=ERecovering)User::Leave(KErrNotReady);if(!record.widgetId){TInt found=ScanOwnRenderL(EFalse);if(found>1)User::Leave(KErrInUse);if(found==1){record.widgetId=candidateWidgetFound;CandidateWriteL(fs,record);}}candidateWidgetFilter=record.widgetId;DetachOwnRenderL();}else User::Leave(KErrArgument);CleanupStack::PopAndDestroy(&fs);CleanupStack::PopAndDestroy(&operation);}
+#endif

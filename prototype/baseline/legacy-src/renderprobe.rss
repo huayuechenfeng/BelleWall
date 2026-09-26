@@ -1,0 +1,15 @@
+#include <ecom/registryinfo.rh>
+RESOURCE REGISTRY_INFO registry
+{
+    dll_uid = 0xe7b31126;
+    interfaces = { INTERFACE_INFO {
+        interface_uid = 0x200286df;
+        implementations = { IMPLEMENTATION_INFO {
+            implementation_uid = 0xe7b31127;
+            version_no = 1;
+            display_name = "BelleWall renderer diagnostic";
+            default_data = "bellewall-render-candidate";
+            opaque_data = "diagnostic-local-redraw";
+        } };
+    } };
+}

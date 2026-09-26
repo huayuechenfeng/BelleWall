@@ -1,0 +1,38 @@
+'use strict';
+const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
+const root=path.resolve(__dirname,'../..'),out=path.resolve(process.argv[2]||path.join(root,'dist/BelleWall-1.0.0'));
+if(fs.existsSync(out))throw Error('Release directory exists; choose a new output');
+const work=path.join(root,'build/release-1.0.0'),dist=path.join(root,'dist'),assets=path.join(root,'build/product-assets');
+fs.mkdirSync(work,{recursive:true});fs.mkdirSync(out,{recursive:true});fs.mkdirSync(path.join(root,'research/evidence/device'),{recursive:true});
+function run(exe,args,label){const r=cp.spawnSync(exe,args,{cwd:root,encoding:'utf8',windowsHide:true,maxBuffer:32*1024*1024,env:{...process.env,BELLEWALL_DEMO_MP4:path.join(assets,'demo.mp4')}});fs.writeFileSync(path.join(work,label+'.log'),(r.stdout||'')+(r.stderr||''));if(r.error||r.status)throw Error(label+': '+(r.error||r.stderr||r.stdout));console.log(label+' passed');return r.stdout;}
+const node=(file,args=[],label=path.basename(file))=>run(process.execPath,[file,...args],label);
+node('prototype/tools/check-docs.cjs');
+node('--test',fs.readdirSync(path.join(root,'prototype/tests')).filter(n=>n.endsWith('.test.cjs')&&n!=='package-verifier.test.cjs').map(n=>'prototype/tests/'+n),'offline-tests');
+if(!fs.existsSync(assets))node('prototype/tools/prepare-product-assets.cjs');
+node('prototype/tools/build-render-probe.cjs',['--host-only']);
+node('prototype/tools/package-session-helper.cjs',['prototype/baseline']);
+node('prototype/tools/build-native-wallpaper.cjs');node('prototype/tools/build.cjs');node('prototype/tools/package.cjs');
+node('prototype/tools/verify-product-packages.cjs',['dist',path.join(work,'paired-packages.json')]);
+node('--test',['prototype/tests/package-verifier.test.cjs'],'package-tests');
+const sdk=process.env.BELLE_SDK||'C:/QtSDK/Symbian/SDKs/SymbianSR1Qt474';
+const packages=[['bellerender-selfsigned.sisx','0xE7B31106'],['bellepaper-selfsigned.sisx','0xE7B31103'],['bellewall-selfsigned.sisx','0xE7B31101']];
+const pkg='&EN\n#{"BelleWall 1.0"},(0xE7B31109),1,0,0\n%{"BelleWall"}\n:"BelleWall"\n'+packages.map(([n,id])=>'@"'+path.join(dist,n).replaceAll('\\','/')+'",('+id+')').join('\n')+'\n';
+const spec=path.join(work,'BelleWall.pkg'),unsigned=path.join(work,'BelleWall-unsigned.sis'),signed=path.join(out,'BelleWall-1.0.0.sisx');fs.writeFileSync(spec,pkg);
+run(sdk+'/epoc32/tools/makesis.exe',[spec,unsigned],'combined-makesis');
+run(sdk+'/epoc32/tools/signsis.exe',['-s',unsigned,signed,path.join(root,'build/signing/prototype.cer'),path.join(root,'build/signing/prototype.key')],'combined-sign');
+run(sdk+'/epoc32/tools/signsis.exe',['-o',signed],'combined-signature');
+const extracted=path.join(work,'combined-extracted');fs.mkdirSync(extracted,{recursive:true});run(sdk+'/epoc32/tools/dumpsis.exe',['-x','-d',extracted,signed],'combined-extract');
+// dumpsis reconstructs embedded SIS containers; compare decoded payloads/metadata.
+const nested=path.join(work,'combined-verify');fs.mkdirSync(nested,{recursive:true});
+const paired=JSON.parse(fs.readFileSync(path.join(work,'paired-packages.json'),'utf8'));
+packages.forEach(([name],i)=>fs.copyFileSync(path.join(extracted,'sis'+i+'.sis'),path.join(nested,name)));
+for(const pkg of paired.packages)for(const item of pkg.payloads)fs.copyFileSync(path.join(dist,item.name),path.join(nested,item.name));
+node('prototype/tools/verify-product-packages.cjs',[nested,path.join(work,'combined-payloads.json')],'combined-payloads');
+const manifestBytes=fs.readFileSync(path.join(extracted,'bellewall-1.0.0.pkg'));
+const manifest=manifestBytes.toString(manifestBytes[0]===0xff?'utf16le':'utf8');
+const order=[...manifest.matchAll(/@"sis(\d)\.sis",\(0x([0-9a-f]+)\)/g)].map(m=>[Number(m[1]),m[2]]);
+if(JSON.stringify(order)!==JSON.stringify([[0,'e7b31106'],[1,'e7b31103'],[2,'e7b31101']])||!manifest.includes('(0xe7b31109), 1, 0, 0'))throw Error('Combined package identity/order mismatch');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+for(const[n]of packages)fs.copyFileSync(path.join(dist,n),path.join(work,n));
+const report={version:'1.0.0',status:'offline-built-not-device-installed',runtimeBaseline:'library-0.4.3-20260926-r9',combinedUid:'0xe7b31109',components:packages.map(([n,uid])=>({file:n,uid,version:'1.0.0',sha256:sha(path.join(dist,n))})),installer:{file:path.basename(signed),sha256:sha(signed)},limitations:['New version labels and combined installation wrapper are offline verified, not newly device accepted.','Existing half-hour and recovery acceptance belongs to the r9 runtime baseline.']};
+fs.writeFileSync(path.join(work,'validation.json'),JSON.stringify(report,null,2)+'\n');console.log('Release installer: '+signed);
