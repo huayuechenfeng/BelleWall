@@ -2,11 +2,13 @@
 
 ## 1. 准备工具
 
-下载 Release 的 `BelleWall-1.0.0-tools.zip` 并完整解压。手机安装包单独下载，安装方法见 [安装说明](INSTALL.md)。制作工具运行在 Windows 电脑上，不在手机上转换视频。
+下载 Release 的 `BelleWall-1.0.0-tools-r2.zip` 并完整解压。手机安装包单独下载，安装方法见 [安装说明](INSTALL.md)。制作工具运行在 Windows 电脑上，不在手机上转换视频。
 
 电脑需要 Node.js 和 FFmpeg。本项目验证环境为 Node.js 24.14.0、FFmpeg 9.0.1；压缩包不捆绑这两个运行依赖。安装 Node 后，在终端执行 `node --version` 应显示版本。解压 FFmpeg，找到包含 `ffmpeg.exe` 的 `bin` 目录。
 
-在工具包根目录打开 PowerShell，执行（替换成你的实际路径）：
+推荐把 FFmpeg 的完整 `bin` 目录复制到工具包根目录新建的 `ffmpeg` 文件夹中，最终应存在 `ffmpeg/bin/ffmpeg.exe`，然后双击 `Start-BelleWall.cmd`。工具也能自动查找 PATH 中的 FFmpeg。
+
+也可以在工具包根目录打开 PowerShell，执行（替换成你的实际路径）：
 
 ```powershell
 $env:FFMPEG_BIN = 'C:\Tools\ffmpeg\bin'
@@ -56,7 +58,7 @@ Wallpaper Engine 的 MPKG 必须含有已经渲染好的视频入口。工具按
 ## 常见问题
 
 - 无法启动制作工具：确认 Node 可用；端口被占用时关闭旧工具窗口，或设置 `$env:PORT='8766'` 后用对应网址。
-- 提示找不到 FFmpeg：FFMPEG_BIN 应指向包含 ffmpeg.exe 的目录，而不是可执行文件本身。
+- 提示找不到 FFmpeg：工具包不附带 FFmpeg；按上文放到 `ffmpeg/bin/ffmpeg.exe` 即可。`FFMPEG_BIN` 支持程序文件或所在目录，显式设置后优先使用；路径已失效时请修正或删除该变量，关闭旧工具窗口并重新启动。原版出现开发目录 `spawnSync ... ENOENT` 时，请下载 tools-r2。
 - 提示实时场景：先预渲染成视频，不能直接转换 scene／SWF。
 - 手机提示包损坏：重新生成并完整复制，不要手工编辑二进制包。
 - 手机提示不适用：检查尺寸与方向，先使用 180×320 竖屏。

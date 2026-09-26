@@ -19,10 +19,10 @@ function prepare(input,output,options={}){
    const e=info.entries.find(e=>e.name===kind.entry);media=path.join(tmp,'input.mp4');fs.writeFileSync(media,b.subarray(e.absoluteOffset,e.absoluteOffset+e.size));
   }
   if(/\.swf$/i.test(media))throw Error('SWF unsupported');
-  const bin=process.env.FFMPEG_BIN||path.join(root,'build/ffmpeg-9.0.1-essentials_build/bin');
+  const executable=require('./ffmpeg.cjs').resolveFFmpeg();
   const geometry=fit==='cover'?`scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}:(iw-ow)*${x}:(ih-oh)*${y}`:fit==='contain'?`scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x${background.slice(1)}`:`scale=${width}:${height}`;
   const args=['-nostdin','-v','error','-protocol_whitelist','file,pipe','-i',media,'-map','0:v:0','-an','-sn','-dn','-vf',`setpts=(PTS-STARTPTS)/${speed},fps=${fps},${geometry},setsar=1`,'-frames:v',String(frames),'-pix_fmt','rgb565le','-f','rawvideo',path.join(tmp,'frames.raw')];
-  const result=cp.spawnSync(path.join(bin,process.platform==='win32'?'ffmpeg.exe':'ffmpeg'),args,{encoding:'utf8',timeout:180000,maxBuffer:1024*1024});if(result.error||result.status)throw Error(String(result.error||result.stderr));
+  const result=cp.spawnSync(executable,args,{encoding:'utf8',timeout:180000,maxBuffer:1024*1024});if(result.error||result.status)throw Error(String(result.error||result.stderr));
   const p=fs.readFileSync(path.join(tmp,'frames.raw'));const manifest={format:'sywp',version:1,title:String(options.title||path.basename(input)).slice(0,120),kind:'video',width,height,loop:true,pause:'resume',pixelFormat:'rgb565le',stride:width*2,fpsNumerator:fps,fpsDenominator:1,frames:p.length/(width*height*2),display:{...display,orientation,fit,background}};
   fs.writeFileSync(output,encode(manifest,p),{flag:'wx'});return {manifest,ffmpegArgs:args};
  }finally{const tempRoot=path.resolve(os.tmpdir())+path.sep;if(!path.resolve(tmp).startsWith(tempRoot)||!path.basename(tmp).startsWith('bellewall-sywp-'))throw Error('Unsafe temporary directory');fs.rmSync(tmp,{recursive:true,force:true});}
