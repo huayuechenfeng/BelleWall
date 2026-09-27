@@ -2,7 +2,7 @@
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const root=path.resolve(__dirname,'../..'),out=path.resolve(process.argv[2]||'build/release-1.0.0/tools');
 if(fs.existsSync(out))throw Error('Choose a new tools directory');
-const ffmpeg=path.join(root,'build/ffmpeg-portable/package');
+const ffmpeg=path.resolve(process.env.BELLEWALL_PORTABLE_FFMPEG||path.join(root,'build/ffmpeg-portable/package'));
 if(!fs.existsSync(path.join(ffmpeg,'bin/ffmpeg.exe')))throw Error('Build and stage portable FFmpeg first; see doc/BUILD.md');
 const provenance=JSON.parse(fs.readFileSync(path.join(ffmpeg,'SOURCE.json'),'utf8'));
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -11,7 +11,7 @@ function copy(from,to=from){const dst=path.join(out,to);fs.mkdirSync(path.dirnam
 for(const n of ['README.md','LICENSE'])copy(n);
 for(const n of fs.readdirSync(path.join(root,'doc')).filter(n=>n.endsWith('.md')))copy('doc/'+n);
 for(const n of fs.readdirSync(path.join(root,'LICENSES')))copy('LICENSES/'+n);
-for(const n of ['sywp-webui.cjs','sywp-webui.html','sywp.cjs','prepare-sywp.cjs','ffmpeg.cjs','mpkg.cjs'])copy('prototype/tools/'+n);
+for(const n of ['sywp-webui.cjs','sywp-webui.html','sywp.cjs','mp4-profile.cjs','prepare-sywp.cjs','ffmpeg.cjs','mpkg.cjs'])copy('prototype/tools/'+n);
 for(const n of ['clock.html','starter.html'])copy('prototype/content/'+n);
 for(const kind of ['video','web'])copy('build/product-assets/'+kind+'.sywp','examples/BelleWall-'+kind+'.sywp');
 copy('build/product-assets/demo.mp4','examples/demo.mp4');copy('build/product-assets/PROVENANCE.md','examples/PROVENANCE.md');

@@ -6,8 +6,8 @@ export PATH=/ucrt64/bin:/usr/bin
   --disable-autodetect --disable-network --disable-devices \
   --disable-doc --disable-debug --disable-x86asm --disable-ffplay --disable-ffprobe \
   --disable-shared --enable-static --extra-ldflags=-static \
-  --disable-encoders --enable-encoder=rawvideo \
-  --disable-muxers --enable-muxer=rawvideo \
+  --disable-encoders --enable-encoder=rawvideo,mpeg4 \
+  --disable-muxers --enable-muxer=rawvideo,mp4 \
   --disable-protocols --enable-protocol=file,pipe \
   --disable-filters --enable-filter=scale,crop,pad,fps,setpts,setsar,format,null
 make -j"${BELLEWALL_BUILD_JOBS:-4}"

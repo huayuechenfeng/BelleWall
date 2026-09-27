@@ -1,8 +1,8 @@
 # SYWP 1 壁纸包规范（容器版本 1）
 
-统一扩展名为 `.sywp`，MIME 为 `application/vnd.bellewall.sywp`；`symp` 不作为另一种格式。SYWP 是内容交换格式，不绑定某个机型或屏幕尺寸。首版实现支持无压缩 RGB565 视频帧集和手机实时 WebKit 自包含页面。SWF、实时 scene MPKG 不在本版范围。
+统一扩展名为 `.sywp`，MIME 为 `application/vnd.bellewall.sywp`；`symp` 不作为另一种格式。SYWP 是内容交换格式，不绑定某个机型或屏幕尺寸。现有正式版支持无压缩 RGB565 视频帧集和手机实时 WebKit 自包含页面；1.0.3 测试候选另支持下述 MP4V 载荷。SWF、实时 scene MPKG 不在本版范围。
 
-**后续规划：** 增加包含 MP4 视频载荷的 SYWP 配置，并支持直接导入 MP4，以改善高帧率壁纸的体积和导入速度。当前 1.0.2 手机程序与本规范中的视频 payload 仍只接受无压缩 RGB565；MP4 字段、编码限制和兼容规则须经设备解码验证后另行定稿，见 [下一阶段计划](NEXT-PHASE-PLAN.md)。
+**版本边界：** 1.0.2 及更早的手机程序只接受无压缩 RGB565 视频。MP4V 配置是 1.0.3 测试候选；E7、603 的系统解码和持续帧率尚未验收，格式支持范围会根据实测调整。直接导入裸 `.mp4` 尚未实现，见 [下一阶段计划](NEXT-PHASE-PLAN.md)。
 
 ## 容器
 
@@ -58,11 +58,28 @@
 
 ## 视频 payload
 
-帧按时间顺序排列。`RGB565LE`：R5 高位、G6 中位、B5 低位；逐像素小端；行自上至下，不含 alpha。`stride = width * 2`；偶数宽度保证四字节行对齐。`payloadBytes = frames * stride * height`，乘法以至少 64 位检查。帧数至少 1，且受总包大小约束。
+RGB565 配置中，帧按时间顺序排列。`RGB565LE`：R5 高位、G6 中位、B5 低位；逐像素小端；行自上至下，不含 alpha。`stride = width * 2`；偶数宽度保证四字节行对齐。`payloadBytes = frames * stride * height`，乘法以至少 64 位检查。帧数至少 1，且受总包大小约束。
 
 `fpsNumerator / fpsDenominator` 在 1–60 fps；分子 1–60000，分母 1–1001。10/20/30 fps 都是常规选项，也可表达 30000/1001。帧时刻为 `frameIndex * denominator / numerator`。循环周期为 `frames * denominator / numerator`。以有效单调时间选择目标帧，落后时跳帧；解码／显示队列不得积压。PC 调整速度会重新采样输出，不再给手机叠加第二个速度参数。
 
 导入后的 BWV2 是内部手机帧流，不是另一个对外包格式。它的 48 字节头为 12 个 LE uint32：`0x32565742,48,width,height,stride,1,fpsNumerator,fpsDenominator,frames,frameBytes,48,payloadBytes`，后接原始帧。`1` 表示 RGB565LE。手机按目标位置读单帧，不把全视频载入内存。
+
+### 1.0.3 测试候选：MP4V 载荷
+
+压缩配置使用相同的 SYWP v1 头、长度上限和 SHA-256 校验。manifest 的 `kind` 仍为 `video`，但用以下字段代替 RGB565 的 `pixelFormat` 和 `stride`：
+
+```json
+{
+  "container": "mp4",
+  "codec": "mpeg4-part2",
+  "requiredFeatures": ["video-mp4v-v1"],
+  "fpsNumerator": 30,
+  "fpsDenominator": 1,
+  "frames": 300
+}
+```
+
+payload 是一份完整 MP4 文件，包含一个恒定帧率的 `mp4v` 视频轨、`ftyp`、`moov` 和非空 `mdat`；不包含音轨、字幕或附加视频轨。制作工具采用 MPEG-4 Part 2、YUV420P、无 B 帧、按帧率设定关键帧间隔，并把 `moov` 放在媒体数据前。PC 校验器核对视频轨实际宽高、样本数和 `stts` 帧率与 manifest 一致；手机导入时验证包 SHA-256 和基本 `ftyp` 结构，播放时交给系统解码器。手机将 payload 原样保存为内部 `.mp4`，不转成 BWV2；旧版读取器因未知 `requiredFeatures` 拒绝此配置。手机候选当前仅接受 180×320／360×640、10／20／30 fps、竖屏；解码性能需实机验证。
 
 ## WebKit payload 与作者契约
 
@@ -82,11 +99,12 @@ node prototype/tools/sywp.cjs inspect build/my-clock.sywp
 ```powershell
 node prototype/tools/sywp-webui.cjs
 # 浏览器打开 http://127.0.0.1:8765，选择源文件、画布、帧率、裁剪位置、张数、速度。
-node prototype/tools/prepare-sywp.cjs input.mp4 build/my-video.sywp '{"width":360,"height":640,"fps":30,"frames":300,"speed":1,"x":0.5,"y":0.5}'
+node prototype/tools/prepare-sywp.cjs input.mp4 build/my-video.sywp '{"width":360,"height":640,"fps":30,"frames":300,"speed":1,"x":0.5,"y":0.5,"encoding":"rgb565"}'
+node prototype/tools/prepare-sywp.cjs input.mp4 build/my-video-mp4.sywp '{"width":360,"height":640,"fps":30,"frames":300,"encoding":"mp4"}'
 ```
 
 WebUI 仅绑定本机；POST 校验随机令牌与 Host。视频／MPKG 转换不执行包内脚本。视频型 MPKG 根据实际入口识别，即使 project.type 为 scene 也可转换；实时 scene 和 SWF 拒绝。当前制作工具将 fit 同时应用于源视频到包画布：cover 按位置裁剪、contain 居中补背景色、stretch 拉伸；这些结果已烘焙为 payload 像素。manifest 的 `display.fit` 仍定义画布到手机屏幕的适配策略，不能要求播放器再次裁剪原始素材。输出超过存储上限时拒绝。WebUI 临时任务保存在 build/sywp-webui，并在处理与传输结束后清理；异常终止遗留目录可在工具关闭后清理。
 
 当前手机库保留原始 manifest 作为同名 `.json` 元数据，显示作者提供的标题；统一选择指针 `selected-wallpaper.txt` 在校验与落盘成功后原子更新。这些属于手机内部实现，不是 SYWP 容器字段。失败导入保持此前选择，已有未恢复会话时拒绝修改。
 
-1.0.0／1.0.1 手机播放器导入支持 180×320 实时网页，以及 180×320 或 360×640 视频；视频供帧约 10 fps。1.0.2 视频候选版按 BWV2 的分子／分母帧率调度，显示请求最高 30 fps，落后时跳帧；高于 30 fps 的素材可以导入但按 30 fps 上限取样。网页仍按约 10 fps 生成。手机暂不支持横屏／其他比例播放，方向或背景对象不匹配时停止；其他包可由 PC 制作、检查，手机明确拒绝。E6 和旋转切换仍未适配。
+1.0.0／1.0.1 手机播放器导入支持 180×320 实时网页，以及 180×320 或 360×640 视频；视频供帧约 10 fps。1.0.2 视频版按 BWV2 的分子／分母帧率调度，显示请求最高 30 fps，落后时跳帧；高于 30 fps 的 RGB565 素材可以导入但按 30 fps 上限取样。1.0.3 测试候选增加 MP4V 系统解码路径，实际帧率未验证。网页仍按约 10 fps 生成。手机暂不支持横屏／其他比例播放，方向或背景对象不匹配时停止；其他包可由 PC 制作、检查，手机明确拒绝。E6 和旋转切换仍未适配。

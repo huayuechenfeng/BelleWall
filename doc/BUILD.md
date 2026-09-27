@@ -8,6 +8,8 @@
 
 1.0.2 视频候选使用 `node prototype/tools/build-video-candidate.cjs <新的输出目录>`。它沿用布局验证与组合 SISX 核验，另生成 360×640 的 20 fps、30 fps 动态 SYWP 测试图，并记录包和样本哈希。当前离线构建在 `build/checkpoints/BelleWall-1.0.2-video-candidate-v2`；使用 `node prototype/tools/package-video-test.cjs <候选目录> <新的 ZIP 路径>` 生成手机测试 ZIP，交付位置为 `dist/test/1.0.2/`。用户反馈 E7 测试效果很好；603 本轮结果与持续帧率仍待确认。正式 1.0.2 使用 `node prototype/tools/promote-video-release.cjs` 从经核验的组件重新制作外层正式安装包，再封装当前 PC 工具。
 
+1.0.3 双视频格式候选在 PowerShell 中设置 `BELLEWALL_CANDIDATE_VERSION=1.0.3`、`FFMPEG_BIN=<MP4V 便携版 ffmpeg/bin>` 和 `BELLEWALL_TEST_FFMPEG=<带 testsrc2 的开发机 ffmpeg.exe>`，再运行同一个 `build-video-candidate.cjs <新的输出目录>`。开发机 FFmpeg 只生成测试图；两种 SYWP 均由便携版转换。运行 `package-video-test.cjs <候选目录> <dist/test/1.0.3/…-injector-test.zip>` 可打包组合安装器、独立注入器和三种视频样本。设置 `BELLEWALL_PORTABLE_FFMPEG=<MP4V 便携版目录>` 后执行 `bundle-release-tools.cjs <候选目录/tools>`，再用 `package-release-tools.cjs <候选目录/tools> <dist/test/1.0.3/…-tools-test.zip>` 制作 PC 测试工具。1.0.3 是待 E7／603 验收的测试候选，不能放进 `dist/release/`。
+
 环境变量 BELLE_SDK、BELLE_GCCE、OPENSSL、BELLEWALL_HOST_CXX 可覆盖工具路径。制作示例还需要 FFmpeg；FFMPEG_BIN 指向其 bin 目录。
 
 构建执行主机测试、保留固定哈希的既有渲染器、构建 helper／native／Qt 应用、打包三个 1.0.0 组件，再合成 1.0.0 顶层 SISX。解包校验各载荷、UID、安装目标与版本依赖，保存签名检查、日志及哈希。三个组件保留原 UID 以支持升级。
@@ -25,6 +27,6 @@ node prototype/tools/stage-portable-ffmpeg.cjs
 node prototype/tools/bundle-release-tools.cjs build/release-1.0.0/tools-r3
 ```
 
-暂存脚本默认读取 `C:/msys64` 的工具链版权文件，可用 `BELLEWALL_MSYS_ROOT` 覆盖；构建脚本在 MSYS2 UCRT64 中运行。工具包携带未修改的完整 FFmpeg 源码压缩包、同一构建脚本及配置；无网络协议、外部编解码库或 GPL/nonfree 功能。不要把其他 FFmpeg 二进制直接替换进发行包却沿用该来源声明。
+暂存脚本默认读取 `C:/msys64` 的工具链版权文件，可用 `BELLEWALL_MSYS_ROOT` 覆盖；构建脚本在 MSYS2 UCRT64 中运行。工具包携带未修改的完整 FFmpeg 源码压缩包、同一构建脚本及配置；无网络协议、外部编解码库或 GPL/nonfree 功能。1.0.3 候选增加 FFmpeg 自带的 MPEG-4 Part 2 编码器与 MP4 muxer。不要把其他 FFmpeg 二进制直接替换进发行包却沿用该来源声明。
 
 1.0.2 正式工具包使用 `node prototype/tools/bundle-release-tools.cjs build/release-1.0.2/tools`，再使用 `node prototype/tools/package-release-tools.cjs build/release-1.0.2/tools dist/release/1.0.2/BelleWall-1.0.2-tools.zip` 封装。ZIP 根目录直接包含 `Start-BelleWall.cmd`、README、`prototype/` 和 `ffmpeg/`，不增加外层目录。正式目录需保存 `CHANNEL.json`、`SHA256SUMS.txt`、验证清单与发布说明；运行 `node prototype/tools/verify-deliveries.cjs` 核对通道、文件名及哈希。GitHub Release 仅上传 `dist/release/<版本>/` 中的正式附件。

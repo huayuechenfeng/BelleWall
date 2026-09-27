@@ -5,8 +5,8 @@
 
 // An old selection without a drive belongs to the original C: library.
 static QString SywpStorageId(const QString& value){
-    if(QRegExp("[0-9a-f]{64}\\.(bwv|html)").exactMatch(value))return "C:"+value;
-    if(QRegExp("[CEF]:[0-9a-f]{64}\\.(bwv|html)").exactMatch(value))return value;
+    if(QRegExp("[0-9a-f]{64}\\.(bwv|mp4|html)").exactMatch(value))return "C:"+value;
+    if(QRegExp("[CEF]:[0-9a-f]{64}\\.(bwv|mp4|html)").exactMatch(value))return value;
     return QString();
 }
 static QString SywpStoragePath(const QString& value){

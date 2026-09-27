@@ -20,6 +20,7 @@
 #include "candidatesession.h"
 #include "sywpstorage.h"
 static quint32 SywpU32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return quint32(p[0])|(quint32(p[1])<<8)|(quint32(p[2])<<16)|(quint32(p[3])<<24);}
+static quint32 SywpBe32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return (quint32(p[0])<<24)|(quint32(p[1])<<16)|(quint32(p[2])<<8)|quint32(p[3]);}
 static void SywpPut(QByteArray& b,int at,quint32 n){for(int i=0;i<4;i++)b[at+i]=char(n>>(8*i));}
 static TPtrC SywpDes(const QString& s){return TPtrC(reinterpret_cast<const TUint16*>(s.utf16()),s.length());}
 static QString SywpNativePath(QString s){return s.replace(QChar('/'),QChar('\\'));}
@@ -32,7 +33,7 @@ static void SywpAtomicL(const QString& target,const QByteArray& data){
 }
 static void SywpSelectUnlockedL(const QString& name,bool web){
     const QString id=SywpStorageId(name);
-    if(id.isEmpty()||!id.endsWith(web?".html":".bwv"))User::Leave(KErrCorrupt);
+    if(id.isEmpty()||!(web?id.endsWith(".html"):(id.endsWith(".bwv")||id.endsWith(".mp4"))))User::Leave(KErrCorrupt);
     if(!QFile::exists(SywpStoragePath(id)))User::Leave(KErrNotFound);
     SywpAtomicL("C:/data/BelleWall/selected-wallpaper.txt",id.toLatin1());
 }
@@ -41,6 +42,7 @@ class SywpTemporary {public:explicit SywpTemporary(const QString& p):path(p){}~S
 static QChar SywpImportDrive(){QFile f("C:/data/BelleWall/library-drive.txt");if(f.open(QIODevice::ReadOnly)&&f.size()==1){QByteArray value=f.readAll();if(value=="C"||value=="E"||value=="F")return QChar(value[0]);}return QChar('C');}
 static void SywpImportL(const QString& input,QChar destination=QChar()){
     RMutex lock;SywpLockLC(lock);
+    QElapsedTimer total;total.start();
     if(destination.isNull())destination=SywpImportDrive();
     if(destination!='C'&&destination!='E'&&destination!='F')User::Leave(KErrArgument);
     QFile file(input);if(!file.open(QIODevice::ReadOnly))User::Leave(KErrNotFound);QByteArray h=file.read(64);
@@ -50,28 +52,43 @@ static void SywpImportL(const QString& input,QChar destination=QChar()){
     // JSON.parse receives an escaped string, never executable manifest text.
     QString quoted="\"";for(int i=0;i<decoded.size();i++)quoted+=QString("\\u%1").arg(decoded.at(i).unicode(),4,16,QChar('0'));quoted+="\"";
     QScriptEngine engine;QScriptValue m=engine.evaluate("JSON.parse("+quoted+")");if(engine.hasUncaughtException()||!m.isObject())User::Leave(KErrCorrupt);
-    const bool web=m.property("kind").toString()=="web";QString kind=m.property("kind").toString();QScriptValue display=m.property("display");
+    const bool web=m.property("kind").toString()=="web",mp4=!web&&m.property("container").toString()=="mp4";QString kind=m.property("kind").toString();QScriptValue display=m.property("display");
     if(m.property("format").toString()!="sywp"||SywpIntegerL(m,"version",1)!=1||(!web&&kind!="video")||!m.property("loop").isBool()||m.property("loop").toBool()!=true||m.property("pause").toString()!="resume")User::Leave(KErrNotSupported);
     if(!m.property("title").isString()||m.property("title").toString().trimmed().isEmpty()||m.property("title").toString().size()>120||!QRegExp("#[0-9a-fA-F]{6}").exactMatch(display.property("background").toString()))User::Leave(KErrCorrupt);
-    if(m.property("requiredFeatures").isValid()&&(!m.property("requiredFeatures").isArray()||m.property("requiredFeatures").property("length").toInt32()!=0))User::Leave(KErrNotSupported);
+    QScriptValue features=m.property("requiredFeatures");
+    if(mp4){if(!features.isArray()||features.property("length").toInt32()!=1||features.property(0).toString()!="video-mp4v-v1")User::Leave(KErrNotSupported);}
+    else if(features.isValid()&&(!features.isArray()||features.property("length").toInt32()!=0))User::Leave(KErrNotSupported);
     // Format is broader than this firmware-specific playback profile.
     int w=SywpIntegerL(m,"width",2048),height=SywpIntegerL(m,"height",2048);
     if((w!=180||height!=320)&&(!(!web&&w==360&&height==640)))User::Leave(KErrNotSupported);
     if(display.property("orientation").toString()=="landscape"||display.property("rotation").toString()!="follow-display"||!(display.property("orientation").toString()=="auto"||display.property("orientation").toString()=="portrait"))User::Leave(KErrNotSupported);
     if(!(display.property("fit").toString()=="cover"||display.property("fit").toString()=="contain"||display.property("fit").toString()=="stretch"))User::Leave(KErrNotSupported);
-    quint32 count=web?0:SywpIntegerL(m,"frames",268435456),num=web?0:SywpIntegerL(m,"fpsNumerator",60000),den=web?0:SywpIntegerL(m,"fpsDenominator",1001);
+    quint32 count=web?0:SywpIntegerL(m,"frames",mp4?100000:268435456),num=web?0:SywpIntegerL(m,"fpsNumerator",60000),den=web?0:SywpIntegerL(m,"fpsDenominator",1001);
     if(web){if(m.property("entry").toString()!="index.html"||payload>256*1024||!payload)User::Leave(KErrCorrupt);}
-    else if(m.property("pixelFormat").toString()!="rgb565le"||SywpIntegerL(m,"stride",4096)!=quint32(w*2)||!count||quint64(count)*w*height*2!=payload||!num||num>60000||!den||den>1001||num<den||num>den*60)User::Leave(KErrCorrupt);
+    else if(mp4){if(m.property("codec").toString()!="mpeg4-part2"||m.property("pixelFormat").isValid()||m.property("stride").isValid()||payload<32||!count||!num||!den||num<den||num>den*30)User::Leave(KErrCorrupt);}
+    else if(m.property("container").isValid()||m.property("codec").isValid()||m.property("pixelFormat").toString()!="rgb565le"||SywpIntegerL(m,"stride",4096)!=quint32(w*2)||!count||quint64(count)*w*height*2!=payload||!num||num>60000||!den||den>1001||num<den||num>den*60)User::Leave(KErrCorrupt);
     const QString dir=QString(destination)+":/data/BelleWall/library/";
     RFs space;User::LeaveIfError(space.Connect());TVolumeInfo volume;TInt drive=destination=='C'?EDriveC:destination=='E'?EDriveE:EDriveF;TInt volumeError=space.Volume(volume,drive);space.Close();User::LeaveIfError(volumeError);if(volume.iFree<TInt64(payload)+manifestSize+65536)User::Leave(KErrDiskFull);
     if(!QDir().mkpath(dir))User::Leave(KErrWrite);
-    QString name=QString::fromLatin1(h.mid(24,32).toHex())+(web?".html":".bwv"),temp=dir+name+".tmp";SywpTemporary pending(temp);QFile out(temp);if(!out.open(QIODevice::WriteOnly|QIODevice::Truncate))User::Leave(KErrWrite);
-    QProgressDialog progress(BwText("正在校验并导入壁纸…"),BwText("取消"),0,int(payload/65536)+1);progress.setWindowModality(Qt::ApplicationModal);progress.setMinimumDuration(0);progress.setValue(0);
-    if(!web){QByteArray bwv(48,0);quint32 fields[]={0x32565742,48,quint32(w),quint32(height),quint32(w*2),1,num,den,count,quint32(w*height*2),48,payload};for(int i=0;i<12;i++)SywpPut(bwv,i*4,fields[i]);if(out.write(bwv)!=48)User::Leave(KErrWrite);}
-    CSHA2* hash=CSHA2::NewLC(E256Bit);hash->Update(TPtrC8(reinterpret_cast<const TUint8*>(json.constData()),json.size()));QByteArray html;quint32 remaining=payload;while(remaining){QByteArray b=file.read(qMin(remaining,quint32(65536)));if(b.isEmpty())User::Leave(KErrCorrupt);hash->Update(TPtrC8(reinterpret_cast<const TUint8*>(b.constData()),b.size()));if(web)html+=b;if(out.write(b)!=b.size())User::Leave(KErrWrite);remaining-=b.size();progress.setValue(int((payload-remaining)/65536));if(progress.wasCanceled())User::Leave(KErrCancel);}
-    TPtrC8 digest=hash->Final();QByteArray result(reinterpret_cast<const char*>(digest.Ptr()),digest.Length());CleanupStack::PopAndDestroy(hash);if(result!=h.mid(24,32)||(web&&(!html.contains("bellewallStep")||QString::fromUtf8(html).toUtf8()!=html))){out.close();QFile::remove(temp);User::Leave(KErrCorrupt);}if(!out.flush())User::Leave(KErrWrite);out.close();
+    QString name=QString::fromLatin1(h.mid(24,32).toHex())+(web?".html":mp4?".mp4":".bwv"),temp=dir+name+".tmp";SywpTemporary pending(temp);QFile out(temp);if(!out.open(QIODevice::WriteOnly|QIODevice::Truncate))User::Leave(KErrWrite);
+    const quint32 chunk=1024u*1024;
+    QProgressDialog progress(BwText("正在校验并导入壁纸…"),BwText("取消"),0,int((payload+chunk-1)/chunk));progress.setWindowModality(Qt::ApplicationModal);progress.setMinimumDuration(0);progress.setValue(0);
+    if(!web&&!mp4){QByteArray bwv(48,0);quint32 fields[]={0x32565742,48,quint32(w),quint32(height),quint32(w*2),1,num,den,count,quint32(w*height*2),48,payload};for(int i=0;i<12;i++)SywpPut(bwv,i*4,fields[i]);if(out.write(bwv)!=48)User::Leave(KErrWrite);}
+    CSHA2* hash=CSHA2::NewLC(E256Bit);hash->Update(TPtrC8(reinterpret_cast<const TUint8*>(json.constData()),json.size()));QByteArray html;quint32 remaining=payload;QElapsedTimer stage;stage.start();qint64 readMs=0,hashMs=0,writeMs=0,uiMs=0,flushMs=0,lastProgressMs=0;
+    while(remaining){
+        stage.restart();QByteArray b=file.read(qMin(remaining,chunk));readMs+=stage.elapsed();if(b.isEmpty())User::Leave(KErrCorrupt);
+        if(mp4&&remaining==payload&&(b.size()<16||SywpBe32(b,0)<16||SywpBe32(b,0)>payload||b.mid(4,4)!="ftyp"))User::Leave(KErrCorrupt);
+        stage.restart();hash->Update(TPtrC8(reinterpret_cast<const TUint8*>(b.constData()),b.size()));hashMs+=stage.elapsed();
+        if(web)html+=b;
+        stage.restart();if(out.write(b)!=b.size())User::Leave(KErrWrite);writeMs+=stage.elapsed();remaining-=b.size();
+        if(total.elapsed()-lastProgressMs>=250||!remaining){stage.restart();progress.setValue(int((payload-remaining+chunk-1)/chunk));uiMs+=stage.elapsed();lastProgressMs=total.elapsed();}
+        if(progress.wasCanceled())User::Leave(KErrCancel);
+    }
+    TPtrC8 digest=hash->Final();QByteArray result(reinterpret_cast<const char*>(digest.Ptr()),digest.Length());CleanupStack::PopAndDestroy(hash);if(result!=h.mid(24,32)||(web&&(!html.contains("bellewallStep")||QString::fromUtf8(html).toUtf8()!=html))){out.close();QFile::remove(temp);User::Leave(KErrCorrupt);}stage.restart();if(!out.flush())User::Leave(KErrWrite);out.close();flushMs=stage.elapsed();
     RFs fs;User::LeaveIfError(fs.Connect());TInt rename=fs.Replace(SywpDes(SywpNativePath(temp)),SywpDes(SywpNativePath(dir+name)));fs.Close();User::LeaveIfError(rename);
-    SywpAtomicL(dir+name+".json",json);if(!QDir().mkpath("C:/data/BelleWall"))User::Leave(KErrWrite);SywpAtomicL("C:/data/BelleWall/library-drive.txt",QString(destination).toLatin1());SywpSelectUnlockedL(QString(destination)+":"+name,web);progress.setValue(progress.maximum());CleanupStack::PopAndDestroy(&lock);
+    SywpAtomicL(dir+name+".json",json);if(!QDir().mkpath("C:/data/BelleWall"))User::Leave(KErrWrite);SywpAtomicL("C:/data/BelleWall/library-drive.txt",QString(destination).toLatin1());SywpSelectUnlockedL(QString(destination)+":"+name,web);progress.setValue(progress.maximum());
+    logLine(QString("SYWP import profile bytes=%1 drive=%2 total_ms=%3 read_ms=%4 hash_ms=%5 write_ms=%6 ui_ms=%7 flush_ms=%8 chunk_bytes=%9").arg(payload).arg(destination).arg(total.elapsed()).arg(readMs).arg(hashMs).arg(writeMs).arg(uiMs).arg(flushMs).arg(chunk));
+    CleanupStack::PopAndDestroy(&lock);
 }
 static void CandidateShowDesktopL(){
     RWsSession ws;User::LeaveIfError(ws.Connect());CleanupClosePushL(ws);TApaTaskList tasks(ws);TApaTask desktop=tasks.FindApp(TUid::Uid(0x102750f0));
@@ -93,7 +110,7 @@ static QString SywpPickWallpaper(const QString& chosen,int& action){
     action=0;QStringList names,valid;
     for(const char* drive="CEF";*drive;drive++){
         QString root=QString(QChar(*drive))+":/data/BelleWall/library/";
-        QStringList entries=QDir(root).entryList(QStringList()<<"*.bwv"<<"*.html",QDir::Files);
+        QStringList entries=QDir(root).entryList(QStringList()<<"*.bwv"<<"*.mp4"<<"*.html",QDir::Files);
         for(int i=0;i<entries.size();i++)names<<QString(QChar(*drive))+":"+entries[i];
     }
     QDialog picker;picker.setWindowTitle(BwText("壁纸管理"));QVBoxLayout* layout=new QVBoxLayout(&picker);
@@ -149,7 +166,7 @@ static QString SywpError(TInt error){
     if(error==KErrCancel)return BwText("已取消导入，原来的壁纸选择没有改变。");
     if(error==KErrInUse||error==KErrAlreadyExists)return BwText("请先停止壁纸并完成桌面恢复，再导入或选择内容。");
     if(error==KErrDiskFull)return BwText("选定盘空间不足。请换一个存储盘或释放空间后重试，原来的壁纸选择没有改变。");
-    if(error==KErrNotSupported)return BwText("这个壁纸包暂不适用于当前手机。视频支持竖屏 180×320／360×640，网页支持 180×320。");
+    if(error==KErrNotSupported)return BwText("这个壁纸包暂不适用于当前手机。视频支持竖屏 180×320／360×640；MP4 压缩版还依赖手机视频解码器。网页支持 180×320。");
     if(error==KErrCorrupt)return BwText("壁纸包损坏或格式不正确，请重新生成或复制。原来的壁纸选择没有改变。");
     if(error==KErrNotFound)return BwText("找不到文件，请重新选择或导入。");
     return BwText("操作未完成，请检查文件和可用空间后重试。错误码：")+QString::number(error);
@@ -164,6 +181,7 @@ public:
     void OpenL(const QString& name){
         if(SywpStorageId(name).isEmpty())User::Leave(KErrArgument);
         web=name.endsWith(".html");note->setText(SywpLabel(name)+BwText(web?"\n应用内网页预览（5 fps），不会应用到桌面。":"\n应用内视频预览（最高 30 fps），不会应用到桌面。"));QString path=SywpStoragePath(name);
+        if(name.endsWith(".mp4")){note->setText(SywpLabel(name)+BwText("\nMP4 压缩版的应用内预览尚未接入。可返回壁纸管理启动测试；若系统解码器不支持，请停止并保留诊断。"));return;}
         if(web){content.loadL(path);content.resumeL(QSize(180,320));}
         else{file.setFileName(path);if(!file.open(QIODevice::ReadOnly))User::Leave(KErrNotFound);QByteArray h=file.read(48);
             if(h.size()!=48||SywpU32(h,0)!=0x32565742||SywpU32(h,4)!=48)User::Leave(KErrCorrupt);
