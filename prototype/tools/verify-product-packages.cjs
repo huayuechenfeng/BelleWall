@@ -2,6 +2,8 @@
 // Read-only verification of the three paired product packages. Extraction uses
 // an isolated temporary directory; only that freshly created directory is removed.
 const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process'),crypto=require('crypto');
+const version=process.env.BELLEWALL_PRODUCT_VERSION||'1.0.0';
+if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid product version');
 const sha=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const profiles=[
  {sis:'bellerender-selfsigned.sisx',uid:0xe7b31106,dependency:null,files:['bellerendercandidate.dll','bellerendercandidate.rsc','bellerenderhost.exe','bellerenderlongrun.dll','bellerenderlongrun.rsc'],uids:{0:0xe7b31126,2:0xe7b31108,3:0xe7b31136}},
@@ -15,13 +17,13 @@ function destination(name){
 function manifestMetadata(bytes,profile){
  const text=bytes.toString(bytes[0]===0xff&&bytes[1]===0xfe?'utf16le':'utf8').replace(/^\uFEFF/,'');
  const header=[...text.matchAll(/^#\{[^\r\n]+?\},\s*\(0x([0-9a-f]+)\),\s*(\d+),\s*(\d+),\s*(\d+),\s*TYPE=SA\s*$/gmi)];
- if(header.length!==1||parseInt(header[0][1],16)!==profile.uid||header[0].slice(2).join('.')!=='1.0.0')throw Error(profile.sis+': package identity/version mismatch');
+ if(header.length!==1||parseInt(header[0][1],16)!==profile.uid||header[0].slice(2).join('.')!==version)throw Error(profile.sis+': package identity/version mismatch');
  const dependencies=[...text.matchAll(/^\(0x([0-9a-f]+)\),\s*(\d+),\s*(\d+),\s*(\d+)\s*,\s*\{[^\r\n]+\}\s*$/gmi)];
- if(dependencies.length!==(profile.dependency===null?0:1)||(profile.dependency!==null&&(parseInt(dependencies[0][1],16)!==profile.dependency||dependencies[0].slice(2).join('.')!=='1.0.0')))throw Error(profile.sis+': package dependency mismatch');
+ if(dependencies.length!==(profile.dependency===null?0:1)||(profile.dependency!==null&&(parseInt(dependencies[0][1],16)!==profile.dependency||dependencies[0].slice(2).join('.')!==version)))throw Error(profile.sis+': package dependency mismatch');
  const entries=[...text.matchAll(/^"file(\d+)"\s*-\s*"([^"\r\n]+)"([^\r\n]*)$/gm)];
  if(entries.length!==profile.files.length)throw Error(profile.sis+': install entry count mismatch');
  entries.forEach((entry,i)=>{if(Number(entry[1])!==i||entry[2].toLowerCase()!==destination(profile.files[i]).toLowerCase()||!/^,\s*(?:VR,\s*)?FF\s*$/.test(entry[3]))throw Error(profile.sis+': install destination/options mismatch '+profile.files[i]);});
- return {uid:'0x'+profile.uid.toString(16),version:'1.0.0',dependency:profile.dependency===null?null:{uid:'0x'+profile.dependency.toString(16),minimumVersion:'1.0.0'}};
+ return {uid:'0x'+profile.uid.toString(16),version,dependency:profile.dependency===null?null:{uid:'0x'+profile.dependency.toString(16),minimumVersion:version}};
 }
 function verify(directory,{sdk=process.env.BELLE_SDK||'C:/QtSDK/Symbian/SDKs/SymbianSR1Qt474'}={}){
  const base=path.resolve(directory),temporary=fs.mkdtempSync(path.join(os.tmpdir(),'bellewall-sis-check-')),packages=[];

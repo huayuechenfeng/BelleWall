@@ -7,7 +7,7 @@ int main(int argc,char** argv) {
     QApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
     const bool worker=RProcess().SecureId().iId==0xe7b31130;
     if(worker&&!app.arguments().contains("--export-stream")&&!app.arguments().contains("--export-web")&&!app.arguments().contains("--export-video"))return KErrArgument;
-    if(app.arguments().size()==3&&app.arguments().at(1)=="--import-sywp"){TRAPD(error,SywpImportL(app.arguments().at(2)));logLine(QString("SYWP import result=%1 selected=%2 temporaryFiles=%3").arg(error).arg(SywpChosen()).arg(QDir("C:/data/BelleWall/library").entryList(QStringList()<<"*.tmp",QDir::Files).size()));return error;}
+    if((app.arguments().size()==3||app.arguments().size()==4)&&app.arguments().at(1)=="--import-sywp"){const QString value=app.arguments().size()==4?app.arguments().at(3):QString();QChar drive=value.isEmpty()?QChar():value.size()==1?value.at(0):QChar('?');TRAPD(error,SywpImportL(app.arguments().at(2),drive));logLine(QString("SYWP import drive=%1 result=%2 selected=%3").arg(drive).arg(error).arg(SywpChosen()));return error;}
     if(app.arguments().size()==1||app.arguments().contains("--settings")){WallpaperSettings();return 0;}
     if(CEikonEnv::Static()) { RWindowGroup& group=CEikonEnv::Static()->RootWin();group.EnableReceiptOfFocus(EFalse);group.SetOrdinalPosition(-1,-1000); }
     QDir().mkpath("C:/data/BelleWall");

@@ -15,8 +15,10 @@
 #include <QtGui/QPushButton>
 #include <QtGui/QProgressDialog>
 #include <QtCore/QSignalMapper>
+#include <QtCore/QElapsedTimer>
 #include <apgtask.h>
 #include "candidatesession.h"
+#include "sywpstorage.h"
 static quint32 SywpU32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return quint32(p[0])|(quint32(p[1])<<8)|(quint32(p[2])<<16)|(quint32(p[3])<<24);}
 static void SywpPut(QByteArray& b,int at,quint32 n){for(int i=0;i<4;i++)b[at+i]=char(n>>(8*i));}
 static TPtrC SywpDes(const QString& s){return TPtrC(reinterpret_cast<const TUint16*>(s.utf16()),s.length());}
@@ -29,14 +31,18 @@ static void SywpAtomicL(const QString& target,const QByteArray& data){
     RFs fs;User::LeaveIfError(fs.Connect());TInt error=fs.Replace(SywpDes(SywpNativePath(temp)),SywpDes(SywpNativePath(target)));fs.Close();if(error)QFile::remove(temp);User::LeaveIfError(error);
 }
 static void SywpSelectUnlockedL(const QString& name,bool web){
-    if(!QRegExp(web?"[0-9a-f]{64}\\.html":"[0-9a-f]{64}\\.bwv").exactMatch(name))User::Leave(KErrCorrupt);
-    if(!QFile::exists("C:/data/BelleWall/library/"+name))User::Leave(KErrNotFound);
-    SywpAtomicL("C:/data/BelleWall/selected-wallpaper.txt",name.toUtf8());
+    const QString id=SywpStorageId(name);
+    if(id.isEmpty()||!id.endsWith(web?".html":".bwv"))User::Leave(KErrCorrupt);
+    if(!QFile::exists(SywpStoragePath(id)))User::Leave(KErrNotFound);
+    SywpAtomicL("C:/data/BelleWall/selected-wallpaper.txt",id.toLatin1());
 }
 static void SywpSelectL(const QString& name,bool web){RMutex lock;SywpLockLC(lock);SywpSelectUnlockedL(name,web);CleanupStack::PopAndDestroy(&lock);}
 class SywpTemporary {public:explicit SywpTemporary(const QString& p):path(p){}~SywpTemporary(){QFile::remove(path);}QString path;};
-static void SywpImportL(const QString& input){
+static QChar SywpImportDrive(){QFile f("C:/data/BelleWall/library-drive.txt");if(f.open(QIODevice::ReadOnly)&&f.size()==1){QByteArray value=f.readAll();if(value=="C"||value=="E"||value=="F")return QChar(value[0]);}return QChar('C');}
+static void SywpImportL(const QString& input,QChar destination=QChar()){
     RMutex lock;SywpLockLC(lock);
+    if(destination.isNull())destination=SywpImportDrive();
+    if(destination!='C'&&destination!='E'&&destination!='F')User::Leave(KErrArgument);
     QFile file(input);if(!file.open(QIODevice::ReadOnly))User::Leave(KErrNotFound);QByteArray h=file.read(64);
     if(h.size()!=64||h.left(4)!="SYWP"||SywpU32(h,4)!=1||SywpU32(h,8)!=64||SywpU32(h,20)!=0||h.mid(56)!=QByteArray(8,0))User::Leave(KErrCorrupt);
     quint32 manifestSize=SywpU32(h,12),payload=SywpU32(h,16);if(!manifestSize||manifestSize>16384||payload>256u*1024*1024||file.size()!=qint64(64)+manifestSize+payload)User::Leave(KErrCorrupt);
@@ -56,15 +62,16 @@ static void SywpImportL(const QString& input){
     quint32 count=web?0:SywpIntegerL(m,"frames",268435456),num=web?0:SywpIntegerL(m,"fpsNumerator",60000),den=web?0:SywpIntegerL(m,"fpsDenominator",1001);
     if(web){if(m.property("entry").toString()!="index.html"||payload>256*1024||!payload)User::Leave(KErrCorrupt);}
     else if(m.property("pixelFormat").toString()!="rgb565le"||SywpIntegerL(m,"stride",4096)!=quint32(w*2)||!count||quint64(count)*w*height*2!=payload||!num||num>60000||!den||den>1001||num<den||num>den*60)User::Leave(KErrCorrupt);
-    QString dir="C:/data/BelleWall/library/";if(!QDir().mkpath(dir))User::Leave(KErrWrite);
-    RFs space;User::LeaveIfError(space.Connect());TVolumeInfo volume;TInt volumeError=space.Volume(volume,EDriveC);space.Close();User::LeaveIfError(volumeError);if(volume.iFree<TInt64(payload)+manifestSize+65536)User::Leave(KErrDiskFull);
+    const QString dir=QString(destination)+":/data/BelleWall/library/";
+    RFs space;User::LeaveIfError(space.Connect());TVolumeInfo volume;TInt drive=destination=='C'?EDriveC:destination=='E'?EDriveE:EDriveF;TInt volumeError=space.Volume(volume,drive);space.Close();User::LeaveIfError(volumeError);if(volume.iFree<TInt64(payload)+manifestSize+65536)User::Leave(KErrDiskFull);
+    if(!QDir().mkpath(dir))User::Leave(KErrWrite);
     QString name=QString::fromLatin1(h.mid(24,32).toHex())+(web?".html":".bwv"),temp=dir+name+".tmp";SywpTemporary pending(temp);QFile out(temp);if(!out.open(QIODevice::WriteOnly|QIODevice::Truncate))User::Leave(KErrWrite);
     QProgressDialog progress(BwText("正在校验并导入壁纸…"),BwText("取消"),0,int(payload/65536)+1);progress.setWindowModality(Qt::ApplicationModal);progress.setMinimumDuration(0);progress.setValue(0);
     if(!web){QByteArray bwv(48,0);quint32 fields[]={0x32565742,48,quint32(w),quint32(height),quint32(w*2),1,num,den,count,quint32(w*height*2),48,payload};for(int i=0;i<12;i++)SywpPut(bwv,i*4,fields[i]);if(out.write(bwv)!=48)User::Leave(KErrWrite);}
     CSHA2* hash=CSHA2::NewLC(E256Bit);hash->Update(TPtrC8(reinterpret_cast<const TUint8*>(json.constData()),json.size()));QByteArray html;quint32 remaining=payload;while(remaining){QByteArray b=file.read(qMin(remaining,quint32(65536)));if(b.isEmpty())User::Leave(KErrCorrupt);hash->Update(TPtrC8(reinterpret_cast<const TUint8*>(b.constData()),b.size()));if(web)html+=b;if(out.write(b)!=b.size())User::Leave(KErrWrite);remaining-=b.size();progress.setValue(int((payload-remaining)/65536));if(progress.wasCanceled())User::Leave(KErrCancel);}
     TPtrC8 digest=hash->Final();QByteArray result(reinterpret_cast<const char*>(digest.Ptr()),digest.Length());CleanupStack::PopAndDestroy(hash);if(result!=h.mid(24,32)||(web&&(!html.contains("bellewallStep")||QString::fromUtf8(html).toUtf8()!=html))){out.close();QFile::remove(temp);User::Leave(KErrCorrupt);}if(!out.flush())User::Leave(KErrWrite);out.close();
     RFs fs;User::LeaveIfError(fs.Connect());TInt rename=fs.Replace(SywpDes(SywpNativePath(temp)),SywpDes(SywpNativePath(dir+name)));fs.Close();User::LeaveIfError(rename);
-    SywpAtomicL(dir+name+".json",json);SywpSelectUnlockedL(name,web);progress.setValue(progress.maximum());CleanupStack::PopAndDestroy(&lock);
+    SywpAtomicL(dir+name+".json",json);if(!QDir().mkpath("C:/data/BelleWall"))User::Leave(KErrWrite);SywpAtomicL("C:/data/BelleWall/library-drive.txt",QString(destination).toLatin1());SywpSelectUnlockedL(QString(destination)+":"+name,web);progress.setValue(progress.maximum());CleanupStack::PopAndDestroy(&lock);
 }
 static void CandidateShowDesktopL(){
     RWsSession ws;User::LeaveIfError(ws.Connect());CleanupClosePushL(ws);TApaTaskList tasks(ws);TApaTask desktop=tasks.FindApp(TUid::Uid(0x102750f0));
@@ -74,28 +81,32 @@ static void CandidateLaunchL(const QString& command){
     // Only a direct user action brings the native desktop forward; no page is selected.
     CandidateShowDesktopL();RProcess p;TInt error=p.Create(_L("C:\\sys\\bin\\bellepaper.exe"),SywpDes(command));logLine(QString("UI command=%1 create_result=%2").arg(command).arg(error));User::LeaveIfError(error);p.Resume();p.Close();
 }
-static QString SywpChosen(){QFile f("C:/data/BelleWall/selected-wallpaper.txt");if(!f.open(QIODevice::ReadOnly)||f.size()>80)return QString();QString name=QString::fromLatin1(f.readAll());return QRegExp("[0-9a-f]{64}\\.(bwv|html)").exactMatch(name)?name:QString();}
+static QString SywpChosen(){QFile f("C:/data/BelleWall/selected-wallpaper.txt");if(!f.open(QIODevice::ReadOnly)||f.size()>80)return QString();return SywpStorageId(QString::fromLatin1(f.readAll()));}
 static QString SywpLabel(const QString& name){
-    QString title=BwText(name.endsWith(".html")?"网页壁纸":"视频壁纸")+" "+name.left(8);QFile f("C:/data/BelleWall/library/"+name+".json");
+    QString title=BwText(name.endsWith(".html")?"网页壁纸":"视频壁纸")+" "+name.mid(2,8);QFile f(SywpStoragePath(name)+".json");
     if(f.open(QIODevice::ReadOnly)&&f.size()<=16384){QString json=QString::fromUtf8(f.readAll()),quoted="\"";for(int i=0;i<json.size();i++)quoted+=QString("\\u%1").arg(json.at(i).unicode(),4,16,QChar('0'));quoted+="\"";QScriptEngine engine;QScriptValue m=engine.evaluate("JSON.parse("+quoted+")");if(!engine.hasUncaughtException()&&m.property("title").isString()){title=m.property("title").toString().left(120);title+=BwText(" · %1×%2").arg(m.property("width").toInt32()).arg(m.property("height").toInt32());}}
     return title;
 }
 // Keep the library visible in one Qt dialog; no native combo popup or hidden
 // settings dialog/timer remains alive while the user chooses a wallpaper.
 static QString SywpPickWallpaper(const QString& chosen,int& action){
-    action=0;QStringList names=QDir("C:/data/BelleWall/library").entryList(QStringList()<<"*.bwv"<<"*.html",QDir::Files),valid;
+    action=0;QStringList names,valid;
+    for(const char* drive="CEF";*drive;drive++){
+        QString root=QString(QChar(*drive))+":/data/BelleWall/library/";
+        QStringList entries=QDir(root).entryList(QStringList()<<"*.bwv"<<"*.html",QDir::Files);
+        for(int i=0;i<entries.size();i++)names<<QString(QChar(*drive))+":"+entries[i];
+    }
     QDialog picker;picker.setWindowTitle(BwText("壁纸管理"));QVBoxLayout* layout=new QVBoxLayout(&picker);
     QLabel* info=new QLabel(&picker);info->setWordWrap(true);layout->addWidget(info);
     QListWidget* list=new QListWidget(&picker);list->setWordWrap(true);layout->addWidget(list);int current=0;qint64 total=0;
-    for(int i=0;i<names.size();i++)if(QRegExp("[0-9a-f]{64}\\.(bwv|html)").exactMatch(names[i])){
+    for(int i=0;i<names.size();i++)if(!SywpStorageId(names[i]).isEmpty()){
         if(names[i]==chosen)current=valid.size();valid<<names[i];
-        qint64 bytes=QFileInfo("C:/data/BelleWall/library/"+names[i]).size()+QFileInfo("C:/data/BelleWall/library/"+names[i]+".json").size();total+=bytes;
-        QString text=SywpLabel(names[i])+BwText("\n%1 MiB%2").arg(double(bytes)/1048576.0,0,'f',2).arg(names[i]==chosen?BwText(" · 已选中"):QString());
+        qint64 bytes=QFileInfo(SywpStoragePath(names[i])).size()+QFileInfo(SywpStoragePath(names[i])+".json").size();total+=bytes;
+        QString text=SywpLabel(names[i])+BwText("\n%1 盘 · %2 MiB%3").arg(names[i].left(1)).arg(double(bytes)/1048576.0,0,'f',2).arg(names[i]==chosen?BwText(" · 已选中"):QString());
         QListWidgetItem* item=new QListWidgetItem(text,list);item->setSizeHint(QSize(0,64));
     }
-    RFs fs;TVolumeInfo volume;TInt error=fs.Connect();if(!error){error=fs.Volume(volume,EDriveC);fs.Close();}
-    QString space=error?BwText("C 盘可用空间暂不可读"):BwText("C 盘可用 %1 MiB").arg(double(volume.iFree)/1048576.0,0,'f',1);
-    info->setText(BwText("壁纸 %1 MiB · %2\n%3").arg(double(total)/1048576.0,0,'f',2).arg(space).arg(valid.isEmpty()?BwText("还没有壁纸，请导入 SYWP 壁纸包。"):BwText("选一张壁纸，可预览、删除或启动。")));
+    RFs fs;QStringList freeSpace;if(fs.Connect()==KErrNone){for(const char* candidate="CEF";*candidate;candidate++){TVolumeInfo volume;const TInt drive=*candidate=='C'?EDriveC:*candidate=='E'?EDriveE:EDriveF;if(fs.Volume(volume,drive)==KErrNone)freeSpace<<BwText("%1 盘可用 %2 MiB").arg(QChar(*candidate)).arg(double(volume.iFree)/1048576.0,0,'f',1);}fs.Close();}
+    info->setText(BwText("壁纸 %1 MiB · %2\n%3").arg(double(total)/1048576.0,0,'f',2).arg(freeSpace.isEmpty()?BwText("可用空间暂不可读"):freeSpace.join(BwText(" · "))).arg(valid.isEmpty()?BwText("还没有壁纸，请导入 SYWP 壁纸包。"):BwText("选一张壁纸，可预览、删除或启动。")));
     list->setCurrentRow(current);QSignalMapper* mapper=new QSignalMapper(&picker);
     const QStringList labels=QStringList()<<BwText("导入壁纸包")<<BwText("预览壁纸")<<BwText("删除壁纸")<<BwText("启动动态壁纸")<<BwText("返回");
     const int ids[]={3,4,2,1,0};
@@ -114,16 +125,16 @@ class SywpDeleteBackend {
 public:
     explicit SywpDeleteBackend(const QString& value):name(value){}
     void Check(){
-        if(!QRegExp("[0-9a-f]{64}\\.(bwv|html)").exactMatch(name))User::Leave(KErrArgument);
+        if(SywpStorageId(name).isEmpty())User::Leave(KErrArgument);
         if(QFile::exists("C:/data/BelleWall/preparation-pending.bin"))User::Leave(KErrInUse);
-        if(!QFileInfo("C:/data/BelleWall/library/"+name).isFile())User::Leave(KErrNotFound);
+        if(!QFileInfo(SywpStoragePath(name)).isFile())User::Leave(KErrNotFound);
     }
     bool IsSelected(){return SywpChosen()==name;}
     void ClearSelection(){SywpAtomicL("C:/data/BelleWall/selected-wallpaper.txt",QByteArray());}
-    void RemovePayload(){Remove(name);}
-    void RemoveMetadata(){Remove(name+".json");}
+    void RemovePayload(){Remove(SywpStoragePath(name));}
+    void RemoveMetadata(){Remove(SywpStoragePath(name)+".json");}
 private:
-    void Remove(const QString& file){QString path="C:/data/BelleWall/library/"+file;if(QFile::exists(path)&&!QFile::remove(path))User::Leave(KErrWrite);}
+    void Remove(const QString& path){if(QFile::exists(path)&&!QFile::remove(path))User::Leave(KErrWrite);}
     QString name;
 };
 static void SywpDeleteL(const QString& name){RMutex lock;SywpLockLC(lock);SywpDeleteBackend backend(name);BelleLibrary::Delete(backend);CleanupStack::PopAndDestroy(&lock);}
@@ -137,7 +148,7 @@ static void SywpConfirmDelete(const QString& name){
 static QString SywpError(TInt error){
     if(error==KErrCancel)return BwText("已取消导入，原来的壁纸选择没有改变。");
     if(error==KErrInUse||error==KErrAlreadyExists)return BwText("请先停止壁纸并完成桌面恢复，再导入或选择内容。");
-    if(error==KErrDiskFull)return BwText("手机 C 盘空间不足。请释放空间后重试，原来的壁纸选择没有改变。");
+    if(error==KErrDiskFull)return BwText("选定盘空间不足。请换一个存储盘或释放空间后重试，原来的壁纸选择没有改变。");
     if(error==KErrNotSupported)return BwText("这个壁纸包暂不适用于当前手机。视频支持竖屏 180×320／360×640，网页支持 180×320。");
     if(error==KErrCorrupt)return BwText("壁纸包损坏或格式不正确，请重新生成或复制。原来的壁纸选择没有改变。");
     if(error==KErrNotFound)return BwText("找不到文件，请重新选择或导入。");
@@ -145,25 +156,26 @@ static QString SywpError(TInt error){
 }
 class SywpPreviewDialog:public QDialog {
 public:
-    SywpPreviewDialog():view(new QLabel(this)),note(new QLabel(this)),web(false),timer(0),width(0),height(0),count(0),num(0),den(1),activeMs(0){
+    SywpPreviewDialog():view(new QLabel(this)),note(new QLabel(this)),web(false),timer(0),width(0),height(0),count(0),num(0),den(1),activeMs(0),lastPreviewMs(0){
         setWindowTitle(BwText("壁纸预览"));QVBoxLayout* layout=new QVBoxLayout(this);note->setWordWrap(true);layout->addWidget(note);view->setAlignment(Qt::AlignCenter);layout->addWidget(view,1);
         QPushButton* close=new QPushButton(BwText("返回壁纸管理"),this);close->setMinimumHeight(44);layout->addWidget(close);QObject::connect(close,SIGNAL(clicked()),this,SLOT(reject()));
     }
     ~SywpPreviewDialog(){if(timer)killTimer(timer);}
     void OpenL(const QString& name){
-        if(!QRegExp("[0-9a-f]{64}\\.(bwv|html)").exactMatch(name))User::Leave(KErrArgument);
-        note->setText(SywpLabel(name)+BwText("\n应用内预览（5 fps），不会应用到桌面。"));web=name.endsWith(".html");QString path="C:/data/BelleWall/library/"+name;
+        if(SywpStorageId(name).isEmpty())User::Leave(KErrArgument);
+        web=name.endsWith(".html");note->setText(SywpLabel(name)+BwText(web?"\n应用内网页预览（5 fps），不会应用到桌面。":"\n应用内视频预览（最高 30 fps），不会应用到桌面。"));QString path=SywpStoragePath(name);
         if(web){content.loadL(path);content.resumeL(QSize(180,320));}
         else{file.setFileName(path);if(!file.open(QIODevice::ReadOnly))User::Leave(KErrNotFound);QByteArray h=file.read(48);
             if(h.size()!=48||SywpU32(h,0)!=0x32565742||SywpU32(h,4)!=48)User::Leave(KErrCorrupt);
             width=SywpU32(h,8);height=SywpU32(h,12);num=SywpU32(h,24);den=SywpU32(h,28);count=SywpU32(h,32);
             if(!((width==180&&height==320)||(width==360&&height==640))||SywpU32(h,16)!=width*2||SywpU32(h,20)!=1||!count||!num||!den||den>1001||num<den||num>den*60||SywpU32(h,36)!=width*height*2||SywpU32(h,40)!=48||qint64(SywpU32(h,44))!=qint64(count)*width*height*2||file.size()!=48+qint64(count)*width*height*2)User::Leave(KErrCorrupt);
         }
-        timer=startTimer(200);logLine("UI preview start");
+        previewClock.start();lastPreviewMs=previewClock.elapsed();timer=startTimer(web?200:qMax(33,int(1000LL*den/num)));logLine("UI preview start");
     }
 protected:
     void timerEvent(QTimerEvent*){
-        if(!isActiveWindow()){if(web)content.pause();return;}
+        const qint64 now=previewClock.elapsed();if(!isActiveWindow()){lastPreviewMs=now;if(web)content.pause();return;}
+        const qint64 delta=now-lastPreviewMs;if(delta>0&&delta<5000)activeMs+=delta;lastPreviewMs=now;
         TRAPD(error,FrameL());if(error){killTimer(timer);timer=0;note->setText(BwText("预览失败，错误码：%1。壁纸选择和桌面未改变。").arg(error));logLine(QString("UI preview error=%1").arg(error));}
     }
 private:
@@ -172,14 +184,26 @@ private:
         else{const qint64 index=(activeMs*num/(1000*den))%count;const int bytes=width*height*2;if(!file.seek(48+index*bytes))User::Leave(KErrCorrupt);QByteArray raw=file.read(bytes);if(raw.size()!=bytes)User::Leave(KErrCorrupt);
             frame=QImage(width,height,QImage::Format_RGB16);if(frame.isNull())User::Leave(KErrNoMemory);for(TUint y=0;y<height;y++)Mem::Copy(frame.scanLine(y),raw.constData()+y*width*2,width*2);
         }
-        activeMs+=200;view->setPixmap(QPixmap::fromImage(frame.scaled(view->size(),Qt::KeepAspectRatio,Qt::FastTransformation)));
+        view->setPixmap(QPixmap::fromImage(frame.scaled(view->size(),Qt::KeepAspectRatio,Qt::FastTransformation)));
     }
-    QLabel* view;QLabel* note;bool web;int timer;TUint width,height,count,num,den;qint64 activeMs;QFile file;WebContent content;
+    QLabel* view;QLabel* note;bool web;int timer;TUint width,height,count,num,den;qint64 activeMs,lastPreviewMs;QElapsedTimer previewClock;QFile file;WebContent content;
 };
 static void SywpPreview(const QString& name){SywpPreviewDialog dialog;TRAPD(error,dialog.OpenL(name));if(error){QMessageBox::information(0,"BelleWall",SywpError(error));return;}dialog.showMaximized();dialog.exec();logLine("UI preview closed");}
+static QChar SywpPickImportDrive(){
+    RFs fs;if(fs.Connect())return QChar();QStringList choices;QList<QChar> drives;const QChar preferred=SywpImportDrive();int current=0;
+    for(const char* candidate="CEF";*candidate;candidate++){
+        const TInt drive=*candidate=='C'?EDriveC:*candidate=='E'?EDriveE:EDriveF;
+        TVolumeInfo volume;if(fs.Volume(volume,drive)!=KErrNone)continue;
+        QChar letter(*candidate);if(letter==preferred)current=choices.size();drives<<letter;
+        choices<<BwText("%1 盘 · 可用 %2 MiB").arg(letter).arg(double(volume.iFree)/1048576.0,0,'f',1);
+    }
+    fs.Close();if(choices.isEmpty())return QChar();bool ok=false;
+    QString choice=QInputDialog::getItem(0,BwText("壁纸存储位置"),BwText("导入副本保存到哪个盘？原始 SYWP 文件不移动。"),choices,current,false,&ok);
+    return ok?drives[choices.indexOf(choice)]:QChar();
+}
 static QString SywpManageLibrary(){
     for(;;){int action=0;QString name=SywpPickWallpaper(SywpChosen(),action);if(action<=0)return QString();
-        if(action==3){QString file=QFileDialog::getOpenFileName(0,BwText("导入 SYWP 壁纸包"),"E:/",BwText("壁纸包 (*.sywp)"));if(file.isEmpty())continue;TRAPD(error,SywpImportL(file));logLine(QString("UI library import result=%1").arg(error));if(error)QMessageBox::information(0,"BelleWall",SywpError(error));continue;}
+        if(action==3){QString file=QFileDialog::getOpenFileName(0,BwText("导入 SYWP 壁纸包"),"E:/",BwText("壁纸包 (*.sywp)"));if(file.isEmpty())continue;QChar drive=SywpPickImportDrive();if(drive.isNull())continue;TRAPD(error,SywpImportL(file,drive));logLine(QString("UI library import drive=%1 result=%2").arg(drive).arg(error));if(error)QMessageBox::information(0,"BelleWall",SywpError(error));continue;}
         if(name.isEmpty())continue;
         if(action==2){SywpConfirmDelete(name);continue;}if(action==4){SywpPreview(name);continue;}
         TRAPD(error,SywpSelectL(name,name.endsWith(".html")));if(error){QMessageBox::information(0,"BelleWall",SywpError(error));continue;}return name;

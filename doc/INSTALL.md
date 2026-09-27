@@ -1,6 +1,10 @@
 # 安装、更新与卸载
 
-下载 `BelleWall-1.0.0.sisx`。这是签名 SIS 安装包，依次包含 Renderer Helper、Native 和 BelleWall 三个组件，版本均为 1.0.0。选择 C 盘安装。设备需事先具备 Qt 4.8.1 及所需系统权限；安装包不捆绑 Qt，也不会绕过平台的证书／权限检查。
+正式版下载 `dist/release/1.0.2/BelleWall-1.0.2.sisx`，或从本仓库 GitHub Release 下载同名附件。这是签名 SIS 安装包，依次包含 Renderer Helper、Native 和 BelleWall 三个 1.0.2 组件。选择 C 盘安装；导入的壁纸副本可另选 C、E 或 F 盘。设备需事先具备不低于编译版本 4.7.4 的 Qt 运行库及所需系统权限；安装包不捆绑 Qt，也不会绕过平台的证书／权限检查。1.0.0 历史正式包保留在 `dist/release/1.0.0/`。
+
+1.0.1 兼容性候选目录内的 `BelleWall-1.0.1-compat-candidate.sisx` 已获用户实机测试通过反馈。它只需安装一个组合包，Qt 最低要求为编译版本 4.7.4。E7 如仍使用 `Clouds.jpg` 背景，启动前请将当前页改为原生默认黑色背景；保留当前页数即可。反馈未附逐项日志或测试时长，具体范围见 [兼容性](COMPATIBILITY.md)。
+
+E7、603 的 20／30 fps 视频与 C／E／F 壁纸库存储测试 ZIP 在 `dist/test/1.0.2/BelleWall-1.0.2-injector-test.zip`。它仍是候选，解压后只安装 `install/BelleWall-1.0.2-video-candidate.sisx`；它已经包含注入器，无需再安装 `injector/` 中的独立组件。`samples/` 是两份 360×640 测试 SYWP。用户反馈 E7 效果很好，尚无实测帧率记录；603 本轮结果待反馈。E7 当前横屏切换会导致壁纸崩溃，测试请保持竖屏。
 
 更新前在旧版点“停止并恢复桌面”，确认恢复，再正常退出。不要在壁纸运行或尚有恢复记录时更新。已有组件使用相同 UID 升级，不要混用不同版本的三个组件。
 

@@ -57,7 +57,7 @@ public:
         QSettings c("C:/data/BelleWall/config.ini",QSettings::IniFormat);
         mode=c.value("mode","blocks").toString();file=c.value("file").toString();
         experimentalLegacy=c.value("experimentalLegacy",false).toBool();
-        fps=qBound(1,c.value("fps",10).toInt(),15);maxSeconds=qBound(10,c.value("maxSeconds",180).toInt(),3600);
+        fps=qBound(1,c.value("fps",10).toInt(),30);maxSeconds=qBound(10,c.value("maxSeconds",180).toInt(),3600);
         if(mode!="blocks"&&mode!="video"&&mode!="web")User::Leave(KErrArgument);
         if(mode!="blocks"&&(!file.startsWith("C:/data/BelleWall/")&&!file.startsWith("E:/data/BelleWall/")))User::Leave(KErrArgument);
         logLine("START mode="+mode+" file="+file+"; runtime background validation pending");

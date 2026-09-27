@@ -1,6 +1,7 @@
 #ifndef BELLEWALL_PREPARATION_UI_H
 #define BELLEWALL_PREPARATION_UI_H
 #include <QtCore/QElapsedTimer>
+#include <QtCore/QStringList>
 #include "preparationpolicy.h"
 // Qt pumps the Symbian active scheduler. Every outstanding request must have
 // an active-object owner; polling bare TRequestStatus causes stray completions.
@@ -16,8 +17,18 @@ private:
     void DoCancel(){if(rendezvous)worker.RendezvousCancel(iStatus);else worker.LogonCancel(iStatus);}
     RProcess& worker;TBool rendezvous,finished;TInt result;
 };
+static TBool QtRuntimeMeetsBuildVersion(){
+    const QStringList parts=QString::fromLatin1(qVersion()).split('.');
+    if(parts.size()!=3)return EFalse;
+    uint number[3];
+    for(int i=0;i<3;i++){
+        bool ok=false;number[i]=parts[i].toUInt(&ok);
+        if(!ok||number[i]>255)return EFalse;
+    }
+    return QT_VERSION_CHECK(number[0],number[1],number[2])>=QT_VERSION;
+}
 static TInt PrepareWallpaper(TBool cleanup=EFalse){
-    if(!cleanup&&QString::fromLatin1(qVersion())!="4.8.1")return BellePreparation::Environment;
+    if(!cleanup&&!QtRuntimeMeetsBuildVersion())return BellePreparation::Environment;
     RProcess worker;TInt error=worker.Create(_L("C:\\sys\\bin\\bellerenderhost.exe"),cleanup?_L("--cleanup-wallpaper"):_L("--prepare-wallpaper"));if(error)return error;
     if(worker.SecureId().iId!=TInt(0xe7b31108)){worker.Kill(KErrPermissionDenied);worker.Close();return KErrPermissionDenied;}
     CPreparationWait ready(worker,ETrue),ended(worker,EFalse);ready.Start();ended.Start();
@@ -40,8 +51,8 @@ static TInt PrepareWallpaper(TBool cleanup=EFalse){
 static QString PreparationError(TInt error){
     QString text;
     if(error==BellePreparation::JournalDamaged)text=BwText("组件准备记录损坏或不属于此版本，已保留记录。请通过「运行诊断」导出日志后反馈；不要卸载或删除记录。");
-    else if(error==BellePreparation::Environment)text=BwText("当前环境尚未支持。请检查固件、Qt 版本与竖屏状态，具体兼容范围见使用说明。");
-    else if(error==BellePreparation::Background)text=BwText("请先将原生桌面设为四页默认黑色背景，再重试播放。当前背景不会被替换。");
+    else if(error==BellePreparation::Environment)text=BwText("当前桌面库布局未通过核验，或 Qt 运行库低于编译版本。请保持竖屏并导出诊断；具体兼容范围见使用说明。");
+    else if(error==BellePreparation::Background)text=BwText("请先将所有原生桌面页设为默认黑色背景，再重试播放。当前背景不会被替换。");
     else if(error==KErrInUse||error==KErrAlreadyExists)text=BwText("另一个操作尚未结束，或桌面仍待恢复。请先停止壁纸／重试恢复桌面，再播放。");
     else if(error==KErrDiskFull)text=BwText("手机 C 盘至少需要 8 MiB 可用空间来准备和恢复壁纸。请释放空间后重试。");
     else if(error==KErrTimedOut)text=BwText("组件准备耗时较长。请稍后重试；后台操作完成前不能播放。若持续如此，请保存日志反馈。");

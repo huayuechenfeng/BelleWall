@@ -13,7 +13,7 @@ for(const file of files){
  }
 }
 for(const file of ['prototype/tools/package.cjs','prototype/tools/build-native-wallpaper.cjs','prototype/tools/package-session-helper.cjs'])
- assert(read(file).includes(state.sisVersion.replaceAll('.',',')),file+': SIS version drift');
+ assert(read(file).includes("process.env.BELLEWALL_PRODUCT_VERSION||'"+state.sisVersion+"'"),file+': default SIS version drift');
 assert(read('prototype/src/sywpimport.h').includes('BelleWall 1.0'),'UI version drift');
 assert(!read('prototype/tools/sywp-webui.html').includes('Nokia 603'),'Product label must not name device');
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');

@@ -33,7 +33,7 @@ private:
         RChunk session;TCandidateShared* live=CandidateOpen(session);
         if(live&&!BelleRenderer::AcceptLongrun(live->record.version)){session.Close();self->iTimer->Cancel();Trace(_L("PLUGIN rejected other renderer session version"));return 0;}
         if(live){if(!self->iBound){self->iNonceLo=live->record.nonceLo;self->iNonceHi=live->record.nonceHi;self->iBound=ETrue;}else if(self->iNonceLo!=live->record.nonceLo||self->iNonceHi!=live->record.nonceHi){session.Close();self->iTimer->Cancel();return 0;}}
-        const TInt period=live&&live->record.state==ERunning&&self->DesktopReady()?100000:500000;if(period!=self->iPeriod){self->iPeriod=period;self->iTimer->Cancel();self->iTimer->Start(period,period,TCallBack(Tick,self));}
+        const TInt period=live&&live->record.state==ERunning&&self->DesktopReady()?33333:500000;if(period!=self->iPeriod){self->iPeriod=period;self->iTimer->Cancel();self->iTimer->Start(period,period,TCallBack(Tick,self));}
         if(live&&!live->stop&&(live->record.state==EBinding||live->record.state==ERunning||live->record.state==EPaused)){
             if(live->record.state==EBinding){TRAPD(check,CCoeControl* bg=InspectBackgroundL(EFalse);if(!bg||bg->Rect()!=TRect(0,0,360,640))User::Leave(KErrNotSupported));live->verified=check?check:1;}
             live->consumer++;

@@ -2,6 +2,7 @@
 #define BELLEWALL_CANDIDATE_H
 #include "sessionclock.h"
 #include "consumerwatch.h"
+#include "videotiming.h"
 static void CandidateHelperL(const TDesC& action,const TCandidateRecord& record){
     TBuf<16> token;CandidateToken(record,token);TBuf<100> args(action);args.Append(' ');args.Append(token);
     RProcess p;User::LeaveIfError(p.Create(_L("C:\\sys\\bin\\bellerenderhost.exe"),args));CleanupClosePushL(p);TRequestStatus done;p.Logon(done);p.Resume();
@@ -86,9 +87,11 @@ static void CandidatePlayL(TInt kind){
             CandidateStateL(ready?ERunning:EPaused);if(web)web->Pause(!ready);previousReady=ready;
         }
         if(!ready){User::After(500000);continue;}
-        if(active<next){User::After(TInt(Min(TInt64(100000),next-active)));continue;}next=(active/100000+1)*100000;
+        if(active<next){User::After(TInt(Min(TInt64(video?33334:100000),next-active)));continue;}
+        if(video)next=BelleVideoTiming::NextDueUs(active,video->fps,video->den);
+        else next=(active/100000+1)*100000;
         TUint began=clock.Now();TBool produced=ETrue;
-        if(video){TInt target=TInt(active*video->fps/(TInt64(1000000)*video->den)%video->count);if(target==source)produced=EFalse;else {source=target;image->Blit(video->ReadL(source));}}
+        if(video){TInt target=BelleVideoTiming::SourceFrame(active,video->fps,video->den,video->count);if(target==source)produced=EFalse;else {source=target;image->Blit(video->ReadL(source));}}
         else if(web){TInt render=0,copy=0;if(resumeTrace)Log(_L("RESUME before web buffer read"));produced=web->ReadL(*bitmap,seq,render,copy);if(!produced&&active-lastWebProgress>10000000){Log(_L("STREAM no frame progress for 10 active seconds"));User::Leave(KErrTimedOut);}if(produced){lastWebProgress=active;if(resumeTrace)Log(_L("RESUME before FBS blit"));source=seq;image->Blit(*bitmap);if(resumeTrace)Log(_L("RESUME FBS blit complete"));resumeTrace=EFalse;}}
         else {image->Paint(++source);}
         if(produced)contentCount++;

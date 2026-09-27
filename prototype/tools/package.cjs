@@ -1,6 +1,9 @@
 'use strict';
 const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
 const root=path.resolve(__dirname,'../..'),dist=path.join(root,'dist');
+const version=process.env.BELLEWALL_PRODUCT_VERSION||'1.0.0';
+if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid product version');
+const sisVersion=version.replaceAll('.',',');
 const sdk=process.env.BELLE_SDK||'C:/QtSDK/Symbian/SDKs/SymbianSR1Qt474',openssl=process.env.OPENSSL||'C:/Program Files/Git/mingw64/bin/openssl.exe';
 const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 const built=JSON.parse(fs.readFileSync(path.join(root,'build/arm/success.json')));
@@ -13,10 +16,10 @@ for(const [source,name]of [['prototype/content/clock.html','animation.html'],['p
 fs.writeFileSync(path.join(dist,'THIRD-PARTY.txt'),['PROVENANCE.txt','LICENSE.md','Apache-2.0.txt'].map(n=>fs.readFileSync(path.join(root,'prototype/vendor/h264bsd',n),'utf8')).join('\n\n'));
 const pkg=`; No ROM or theme files are installed or changed.
 &EN
-#{"BelleWall"},(0xE7B31101),1,0,0
+#{"BelleWall"},(0xE7B31101),${sisVersion}
 %{"BelleWall Research"}
 :"BelleWall Research"
-(0xE7B31103),1,0,0,{"BelleWall Native"}
+(0xE7B31103),${sisVersion},{"BelleWall Native"}
 "bellewall.exe"-"C:\\sys\\bin\\bellewall.exe"
 "bellewall.rsc"-"C:\\resource\\apps\\bellewall.rsc"
 "bellewall_reg.rsc"-"C:\\private\\10003a3f\\import\\apps\\bellewall_reg.rsc"

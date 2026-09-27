@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');
-const root=path.resolve(__dirname,'../..'),out=path.resolve(process.argv[2]||path.join(root,'dist/BelleWall-1.0.0'));
+const root=path.resolve(__dirname,'../..'),out=path.resolve(process.argv[2]||path.join(root,'build/release-checkpoints/BelleWall-1.0.0'));
 if(fs.existsSync(out))throw Error('Release directory exists; choose a new output');
 const work=path.join(root,'build/release-1.0.0'),dist=path.join(root,'dist'),assets=path.join(root,'build/product-assets');
 fs.mkdirSync(work,{recursive:true});fs.mkdirSync(out,{recursive:true});fs.mkdirSync(path.join(root,'research/evidence/device'),{recursive:true});

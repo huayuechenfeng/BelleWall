@@ -69,8 +69,8 @@ static void RestorePagesL(){
 static void RefreshCandidatePagesL(const TDesC& path){
     TBuf8<512> value;value.Copy(path);if(!ProjectPage(value))User::Leave(KErrPermissionDenied);
     CandidateVerifyL(fs,KPagesJournal);RFileReadStream in;User::LeaveIfError(in.Open(fs,KPagesJournal,EFileRead|EFileShareReadersOnly));CleanupClosePushL(in);
-    if(in.ReadUint32L()!=KPagesJournalMagic)User::Leave(KErrCorrupt);TInt count=in.ReadInt32L();if(count!=4)User::Leave(KErrNotSupported);
-    TBuf8<32> saved;in>>saved;PageBackup pages[4];for(TInt i=0;i<count;i++){in>>pages[i].id;in>>pages[i].original;}CleanupStack::PopAndDestroy(&in);
+    if(in.ReadUint32L()!=KPagesJournalMagic)User::Leave(KErrCorrupt);TInt count=in.ReadInt32L();if(count<1||count>8)User::Leave(KErrNotSupported);
+    TBuf8<32> saved;in>>saved;PageBackup pages[8];for(TInt i=0;i<count;i++){in>>pages[i].id;in>>pages[i].original;}CleanupStack::PopAndDestroy(&in);
     CHspsWrapper* hs=PagesClientLC();
     for(TInt i=0;i<count;i++){CHspsConfiguration* config=hs->GetPluginConfigurationL(pages[i].id);if(!config)User::Leave(KErrNotFound);CleanupStack::PushL(config);if(PagePathL(*config)->Value().CompareF(value))User::Leave(KErrInUse);CleanupStack::PopAndDestroy(config);}
     RAknsSrvSession skin;User::LeaveIfError(skin.Connect());CleanupClosePushL(skin);skin.RemoveWallpaper(path);CleanupStack::PopAndDestroy(&skin);
@@ -82,13 +82,13 @@ static void RefreshCandidatePagesL(const TDesC& path){
 static void BindPagesL(const TDesC& path){
     TEntry entry;if(fs.Entry(KPagesJournal,entry)!=KErrNotFound)User::Leave(KErrInUse);
     CHspsWrapper* hs=PagesClientLC();CHspsConfiguration* app=hs->GetAppConfigurationL();if(!app)User::Leave(KErrNotFound);CleanupStack::PushL(app);
-    TInt count=app->PluginMaps().Count();if(count!=4)User::Leave(KErrNotSupported);PageBackup pages[8];
+    TInt count=app->PluginMaps().Count();if(count<1||count>8)User::Leave(KErrNotSupported);PageBackup pages[8];
     for(TInt i=0;i<count;i++){
         pages[i].id.Copy(app->PluginMaps()[i]->PluginId());CHspsConfiguration* config=hs->GetPluginConfigurationL(pages[i].id);if(!config)User::Leave(KErrNotFound);CleanupStack::PushL(config);
         pages[i].original.Copy(PagePathL(*config)->Value());CleanupStack::PopAndDestroy(config);
         if(pages[i].original.Length()){
             if(!ProjectPage(pages[i].original))User::Leave(KErrNotSupported);
-            // User confirmed all four pages should return to native black. Only
+            // User confirmed every page should return to native black. Only
             // this project's stale experiment paths are normalized; log evidence.
             TBuf<512> old;old.Copy(pages[i].original);Log(_L("PAGES removing stale project reference on restore:"));Log(old);pages[i].original.Zero();
         }
