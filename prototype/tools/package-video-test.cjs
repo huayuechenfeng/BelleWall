@@ -7,10 +7,9 @@ if(fs.existsSync(output))throw Error('Bundle output exists; choose a new clean o
 const build=fs.realpathSync(path.join(root,'build'));
 const staging=fs.mkdtempSync(path.join(build,'video-test-bundle-'));
 try{
-const bundle=path.join(staging,'BelleWall-1.0.2-test');
-fs.mkdirSync(bundle,{recursive:true});
+const bundle=staging;
 const items=[
- ['BelleWall-1.0.2-video-candidate.sisx','install/BelleWall-1.0.2-video-candidate.sisx'],
+ ['BelleWall-1.0.2-video-candidate.sisx','BelleWall-1.0.2-video-candidate.sisx'],
  ['bellerender-selfsigned.sisx','injector/bellerender-selfsigned.sisx'],
  ['test-20fps-360x640.sywp','samples/test-20fps-360x640.sywp'],
  ['test-30fps-360x640.sywp','samples/test-30fps-360x640.sywp'],
@@ -26,7 +25,7 @@ for(const [name,relative] of items){
 }
 const readme=`# BelleWall 1.0.2 E7／603 视频与注入器测试包
 
-正常测试只安装 install/BelleWall-1.0.2-video-candidate.sisx。它已内含同版本桌面注入器、原生播放进程和 BelleWall 程序。injector/bellerender-selfsigned.sisx 是同版本注入器的独立组件，供检查或单独调试；正常测试不要重复安装。
+正常测试只安装 ZIP 根目录的 BelleWall-1.0.2-video-candidate.sisx。它已内含同版本桌面注入器、原生播放进程和 BelleWall 程序。injector/bellerender-selfsigned.sisx 是同版本注入器的独立组件，供检查或单独调试；正常测试不要重复安装。
 
 先在旧版停止动态壁纸并完成桌面恢复。安装组合包后，把 samples 中的两份 SYWP 复制到手机，在 BelleWall 中导入并选择 C、E 或 F 存储盘；F 盘仅在设备可用时出现。两份样本分别为 360×640、20 fps／30 fps、2 秒循环。两台手机各自先用“60 秒检查”，观察实际流畅度、暂停恢复和停止后的桌面恢复。
 
@@ -36,9 +35,10 @@ fs.writeFileSync(path.join(bundle,'README.md'),readme);
 const hashes=[...items.map(([,relative])=>relative),'README.md'].map(relative=>sha(path.join(bundle,relative))+'  '+relative).join('\n')+'\n';
 fs.writeFileSync(path.join(bundle,'SHA256SUMS.txt'),hashes);
 const run=args=>{const result=cp.spawnSync('tar.exe',args,{encoding:'utf8',windowsHide:true,maxBuffer:1024*1024});if(result.error||result.status)throw Error(String(result.error||result.stderr||result.stdout));return result.stdout;};
-run(['-a','-cf',output,'-C',staging,'BelleWall-1.0.2-test']);
+run(['-a','-cf',output,'-C',staging,...fs.readdirSync(staging).sort()]);
 const listed=new Set(run(['-tf',output]).trim().split(/\r?\n/).map(x=>x.replaceAll('\\','/')));
-for(const relative of [...items.map(([,name])=>name),'README.md','SHA256SUMS.txt'])if(!listed.has('BelleWall-1.0.2-test/'+relative))throw Error('ZIP entry missing: '+relative);
+for(const relative of [...items.map(([,name])=>name),'README.md','SHA256SUMS.txt'])if(!listed.has(relative))throw Error('ZIP entry missing: '+relative);
+if([...listed].some(name=>name.startsWith('./')||name.startsWith('BelleWall-1.0.2-test/')))throw Error('Unexpected ZIP wrapper directory');
 console.log(JSON.stringify({output,bytes:fs.statSync(output).size,sha256:sha(output),fileCount:items.length+2},null,2));
 }finally{
  const resolved=fs.realpathSync(staging);

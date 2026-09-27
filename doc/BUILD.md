@@ -27,4 +27,4 @@ node prototype/tools/bundle-release-tools.cjs build/release-1.0.0/tools-r3
 
 暂存脚本默认读取 `C:/msys64` 的工具链版权文件，可用 `BELLEWALL_MSYS_ROOT` 覆盖；构建脚本在 MSYS2 UCRT64 中运行。工具包携带未修改的完整 FFmpeg 源码压缩包、同一构建脚本及配置；无网络协议、外部编解码库或 GPL/nonfree 功能。不要把其他 FFmpeg 二进制直接替换进发行包却沿用该来源声明。
 
-1.0.2 正式工具包使用 `node prototype/tools/bundle-release-tools.cjs build/release-1.0.2/tools`，然后压缩该目录为 `dist/release/1.0.2/BelleWall-1.0.2-tools.zip`。正式目录需保存 `CHANNEL.json`、`SHA256SUMS.txt`、验证清单与发布说明；运行 `node prototype/tools/verify-deliveries.cjs` 核对通道、文件名及哈希。GitHub Release 仅上传 `dist/release/<版本>/` 中的正式附件。
+1.0.2 正式工具包使用 `node prototype/tools/bundle-release-tools.cjs build/release-1.0.2/tools`，再使用 `node prototype/tools/package-release-tools.cjs build/release-1.0.2/tools dist/release/1.0.2/BelleWall-1.0.2-tools.zip` 封装。ZIP 根目录直接包含 `Start-BelleWall.cmd`、README、`prototype/` 和 `ffmpeg/`，不增加外层目录。正式目录需保存 `CHANNEL.json`、`SHA256SUMS.txt`、验证清单与发布说明；运行 `node prototype/tools/verify-deliveries.cjs` 核对通道、文件名及哈希。GitHub Release 仅上传 `dist/release/<版本>/` 中的正式附件。

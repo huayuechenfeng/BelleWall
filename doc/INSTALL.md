@@ -4,7 +4,7 @@
 
 1.0.1 兼容性候选目录内的 `BelleWall-1.0.1-compat-candidate.sisx` 已获用户实机测试通过反馈。它只需安装一个组合包，Qt 最低要求为编译版本 4.7.4。E7 如仍使用 `Clouds.jpg` 背景，启动前请将当前页改为原生默认黑色背景；保留当前页数即可。反馈未附逐项日志或测试时长，具体范围见 [兼容性](COMPATIBILITY.md)。
 
-E7、603 的 20／30 fps 视频与 C／E／F 壁纸库存储测试 ZIP 在 `dist/test/1.0.2/BelleWall-1.0.2-injector-test.zip`。它仍是候选，解压后只安装 `install/BelleWall-1.0.2-video-candidate.sisx`；它已经包含注入器，无需再安装 `injector/` 中的独立组件。`samples/` 是两份 360×640 测试 SYWP。用户反馈 E7 效果很好，尚无实测帧率记录；603 本轮结果待反馈。E7 当前横屏切换会导致壁纸崩溃，测试请保持竖屏。
+E7、603 的 20／30 fps 视频与 C／E／F 壁纸库存储测试 ZIP 在 `dist/test/1.0.2/BelleWall-1.0.2-injector-test.zip`。它仍是候选，解压后只安装 ZIP 根目录的 `BelleWall-1.0.2-video-candidate.sisx`；它已经包含注入器，无需再安装 `injector/` 中的独立组件。`samples/` 是两份 360×640 测试 SYWP。用户反馈 E7 效果很好，尚无实测帧率记录；603 本轮结果待反馈。E7 当前横屏切换会导致壁纸崩溃，测试请保持竖屏。
 
 更新前在旧版点“停止并恢复桌面”，确认恢复，再正常退出。不要在壁纸运行或尚有恢复记录时更新。已有组件使用相同 UID 升级，不要混用不同版本的三个组件。
 
