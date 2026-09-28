@@ -4,7 +4,7 @@
 
 ## 作者必须遵守的约定
 
-1. 单个 UTF-8 HTML，不超过 256 KiB，包含 HTML、CSS 和 JavaScript；当前画布固定 180×320。
+1. 单个 UTF-8 HTML，不超过 256 KiB，包含 HTML、CSS 和 JavaScript；1.0.x 网页画布固定 180×320；1.1.0 候选支持声明画布与响应式视口。
 2. 定义全局 `function bellewallStep(activeMs)`。宿主活动时调用它，每次据 activeMs 更新一帧；不要自行启动 setInterval、setTimeout、requestAnimationFrame、音视频或 CSS 自动动画。
 3. activeMs 是有效播放时间，暂停时不增长。动画的位置应由它计算，避免依赖“每帧加一”或页面上次状态。
 4. 现实日期时间每帧用 `new Date()` 获取，解锁后才能立即校准。不要用 activeMs 当作实时时钟。
@@ -90,3 +90,10 @@ fs.writeFileSync('my-clock.sywp',
 复制 SYWP → 导入 → 预览 → 60 秒检查。确认各桌面页内容在图标下面、滑页正常、结束恢复正常。再检查一次锁屏后重建：现实时间校准，动画根据 activeMs 接续。网页运行性能取决于内容复杂度，不能只凭浏览器速度判断。
 
 加载失败时检查编码、文件大小、函数名称、脚本语法和异常；打包器的结构校验不会完整执行你的脚本。当前导入器只接受 180×320 网页；不要通过改 manifest 声称已支持 E6、横屏或响应式视口。未来格式支持更多画布，但当前播放器尚未实现方向切换。
+
+
+## 1.1.0 响应式网页候选
+
+定义 `function bellewallResize(width,height)`，更新 canvas 的 width／height 和布局变量。宿主在首次绘制和尺寸变化后调用它，再调用 bellewallStep。不要把 canvas 改尺寸放在每次 bellewallStep 中，以免反复清空和分配缓冲。完整 ES5 示例见 [responsive.html](../prototype/content/responsive.html)。没有此回调的旧网页仍以声明画布绘制，再根据 fit 适配屏幕。
+
+English: define optional `bellewallResize(width,height)` to update the canvas and layout. It runs before the next `bellewallStep(activeMs)` after initial load or a viewport change. Older pages without this callback keep their declared canvas size and are fitted to the screen. Pausing may recreate the page; derive animation state from activeMs.

@@ -32,7 +32,7 @@ const readme=`# BelleWall ${version} E7／603 视频与注入器测试包
 
 30 fps 是播放与注入器的请求上限，不代表 MP4 实机已达到该帧率；MP4 使用系统逐帧解码，速度仍需 E7、603 实机验收。文件哈希在 SHA256SUMS.txt；构建及核验信息在 validation.json。原始 SYWP 不随导入操作删除。
 `;
-fs.writeFileSync(path.join(bundle,'README.md'),readme);
+fs.writeFileSync(path.join(bundle,'README.md'),Number(version.split('.')[1])>=1?fs.readFileSync(path.join(source,'README.md'),'utf8'):readme);
 const hashes=[...items.map(([,relative])=>relative),'README.md'].map(relative=>sha(path.join(bundle,relative))+'  '+relative).join('\n')+'\n';
 fs.writeFileSync(path.join(bundle,'SHA256SUMS.txt'),hashes);
 const run=args=>{const result=cp.spawnSync('tar.exe',args,{encoding:'utf8',windowsHide:true,maxBuffer:1024*1024});if(result.error||result.status)throw Error(String(result.error||result.stderr||result.stdout));return result.stdout;};

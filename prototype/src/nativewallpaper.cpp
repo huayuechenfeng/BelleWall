@@ -69,12 +69,12 @@ static void Put32(TDes8& b,TInt offset,TUint value){for(TInt i=0;i<4;i++)b[offse
 static void FrameL(TInt frame,TDes& name,NativeVideoFrames* video=0,TInt frameWidth=180,TInt frameHeight=320,CFbsBitmap* captured=0){
     CFbsBitmap* bitmap=captured?captured:video?&video->FrameL(frame):0;
     const TInt width=bitmap?bitmap->SizeInPixels().iWidth:frameWidth,height=bitmap?bitmap->SizeInPixels().iHeight:frameHeight,stride=(width*3+3)&~3,total=54+stride*height;
-    if(width<=0||height<=0||width>1024||height>2048)User::Leave(KErrTooBig);
+    if(width<=0||height<=0||width>2048||height>2048)User::Leave(KErrTooBig);
     HBufC8* data=HBufC8::NewLC(total);TPtr8 b=data->Des();b.SetLength(total);b.FillZ();b[0]='B';b[1]='M';Put32(b,2,total);Put32(b,10,54);Put32(b,14,40);Put32(b,18,width);Put32(b,22,height);b[26]=1;b[28]=24;Put32(b,34,stride*height);
     const TBool benchPattern=frame>=100&&frame<200;const TInt blockWidth=benchPattern?Max(2,width/8):38;
-    const TInt left=benchPattern?(frame%10)*(width-blockWidth)/7:(frame*11)%(width-38);
+    const TInt left=benchPattern?(frame%10)*(width-blockWidth)/7:(frame*11)%Max(1,width-38);
     if(bitmap){for(TInt y=0;y<height;y++){TPtr8 row(&b[54+y*stride],0,stride);bitmap->GetScanLine(row,TPoint(0,height-y-1),width,EColor16M);}}
-    else for(TInt y=0;y<height;y++)for(TInt x=0;x<width;x++){const TInt at=54+y*stride+x*3;const bool green=x>=left&&x<left+blockWidth&&y>(benchPattern?height*2/5:130)&&y<(benchPattern?height*3/5:168);b[at]=green?150:35;b[at+1]=green?210:20;b[at+2]=green?25:8;}
+    else for(TInt y=0;y<height;y++)for(TInt x=0;x<width;x++){const TInt at=54+y*stride+x*3;const bool green=x>=left&&x<left+blockWidth&&y>(benchPattern?height*2/5:130)&&y<(benchPattern?height*3/5:168);b[at]=frame==830?0:green?150:35;b[at+1]=frame==830?0:green?210:20;b[at+2]=frame==830?0:green?25:8;}
     if(candidate){TBuf<16> token;CandidateToken(candidate->record,token);name.Format(_L("C:\\data\\BelleWall\\native-frame-%S-%d.bmp"),&token,frame);}else name.Format(_L("C:\\data\\BelleWall\\native-frame-%d.bmp"),frame);
     RFile file;User::LeaveIfError(file.Replace(fs,name,EFileWrite|EFileShareExclusive));CleanupClosePushL(file);User::LeaveIfError(file.Write(b));User::LeaveIfError(file.Flush());CleanupStack::PopAndDestroy(&file);CleanupStack::PopAndDestroy(data);
 }

@@ -13,7 +13,7 @@ static void CandidateHelperL(const TDesC& action,const TCandidateRecord& record)
 static void CandidateStateL(TUint state){candidate->record.state=state;CandidateWriteL(fs,candidate->record);Status(_L("CANDIDATE state"),state);}
 static void CandidateStopWorkerL(const TCandidateRecord& r){
     RChunk web;TInt opened=web.OpenGlobal(KWebChunk,EFalse);if(opened==KErrNotFound)return;User::LeaveIfError(opened);CleanupClosePushL(web);
-    if(web.Size()<TInt(sizeof(TWebFrames))||web.Size()>1024*1024)User::Leave(KErrCorrupt);
+    if(web.Size()<TInt(sizeof(TWebFrames))||web.Size()>TInt(sizeof(TWebFrames))+65536)User::Leave(KErrCorrupt);
     TWebFrames* f=reinterpret_cast<TWebFrames*>(web.Base());
     if(f->magic!=KWebMagic||TUint(f->owner)!=r.owner||f->nonceLo!=r.nonceLo||f->nonceHi!=r.nonceHi)User::Leave(KErrPermissionDenied);
     TUint pid=f->producer;f->stop=1;if(!pid){CleanupStack::PopAndDestroy(&web);return;}
@@ -50,35 +50,43 @@ static void CandidateBackupL(){
     TFileName temp(KJournal);temp.Append(_L(".tmp"));RFile f;User::LeaveIfError(f.Replace(fs,temp,EFileWrite|EFileShareExclusive));CleanupClosePushL(f);const TUint magic=0x42574c33,owner=RProcess().Id().Id();User::LeaveIfError(f.Write(TPckgC<TUint>(magic)));User::LeaveIfError(f.Write(TPckgC<TUint>(owner)));User::LeaveIfError(f.Write(TPckgC<TInt>(type)));User::LeaveIfError(f.Write(TPckgC<TUint>(candidate->record.nonceLo)));User::LeaveIfError(f.Write(TPckgC<TUint>(candidate->record.nonceHi)));User::LeaveIfError(f.Flush());CleanupStack::PopAndDestroy(&f);CandidateSealL(fs,temp);User::LeaveIfError(fs.Rename(temp,KJournal));
 }
 static void CandidateHalt(TAny*){if(candidate){candidate->stop=1;candidate->record.state=EStopping;}}
+#include "displaydata.h"
 static void CandidatePlayL(TInt kind){
     CandidateBackupL();candidate->record.widgetIntent=1;CandidateStateL(EBinding);CandidateHelperL(_L("--candidate-attach"),candidate->record);
     RWsSession ws;User::LeaveIfError(ws.Connect());CleanupClosePushL(ws);CHWRMLight* light=CHWRMLight::NewLC();
     for(TInt i=0;!DesktopReadyL(ws,*light);i++){if(candidate->stop||i>=120)User::Leave(KErrCancel);User::After(500000);}
     for(TInt check=0;candidate->verified==0&&check<50;check++)User::After(100000);if(candidate->verified!=1)User::Leave(KErrNotSupported);
-    TFileName path;FrameL(830,path,0,360,640);BindPagesL(path);User::LeaveIfError(AknsWallpaperUtils::SetIdleWallpaper(path,0));User::After(1000000);
-    User::LeaveIfError(RFbsSession::Connect());LiveCacheImage* image=LiveCacheImage::NewLC(path);image->EnableDirtyL();
+    CWsScreenDevice* screen=new(ELeave)CWsScreenDevice(ws);CleanupStack::PushL(screen);User::LeaveIfError(screen->Construct());const TSize initialSize=screen->SizeInPixels();CleanupStack::PopAndDestroy(screen);if(!BelleDisplay::Valid(initialSize.iWidth,initialSize.iHeight))User::Leave(KErrNotSupported);TContentDisplay policy=ReadContentDisplayL(fs);
+    TFileName path;FrameL(830,path,0,initialSize.iWidth,initialSize.iHeight);BindPagesL(path);User::LeaveIfError(AknsWallpaperUtils::SetIdleWallpaper(path,0));User::After(1000000);
+    User::LeaveIfError(RFbsSession::Connect());LiveCacheImage* image=LiveCacheImage::NewLC(path,initialSize);image->EnableDirtyL();image->Configure(policy.fit,TRgb((policy.background>>16)&255,(policy.background>>8)&255,policy.background&255));
     ContentFrames* video=0;CWebStreamReader* web=0;CFbsBitmap* bitmap=0;
-    if(kind==1){video=ContentFrames::NewLC();}else if(kind==2){web=CWebStreamReader::NewLC();bitmap=new(ELeave)CFbsBitmap;CleanupStack::PushL(bitmap);User::LeaveIfError(bitmap->Create(TSize(180,320),EColor64K));}
-    RFile metrics;User::LeaveIfError(metrics.Replace(fs,_L("C:\\data\\BelleWall\\candidate-metrics.csv"),EFileWrite|EFileShareAny));CleanupClosePushL(metrics);User::LeaveIfError(metrics.Write(_L8("wall_us,active_us,source,work_us,consumer\n")));
+    if(kind==1){video=ContentFrames::NewLC();}else if(kind==2){web=CWebStreamReader::NewLC(initialSize);bitmap=new(ELeave)CFbsBitmap;CleanupStack::PushL(bitmap);User::LeaveIfError(bitmap->Create(image->Size(),EColor64K));}
+    RFile metrics;User::LeaveIfError(metrics.Replace(fs,_L("C:\\data\\BelleWall\\candidate-metrics.csv"),EFileWrite|EFileShareAny));CleanupClosePushL(metrics);User::LeaveIfError(metrics.Write(_L8("wall_us,active_us,source,work_us,consumer,read_us,blit_us\n")));
     const TBool continuous=candidate->record.seconds==0;SessionClock lifetime;lifetime.InitL();
     BenchClock clock;clock.InitL();TUint last=clock.Now();TInt64 elapsed=0,active=0,next=0;TInt source=-1,seq=0;TBool previousReady=EFalse,resumeTrace=EFalse,consumerWaiting=EFalse;TUint consumer=candidate->consumer;ConsumerWatch consumerWatch(consumer,0);TInt64 nextHealth=0,nextMetric=0,lastWebProgress=0;TUint contentCount=0;
-    CandidateStateL(ERunning);CleanupStack::PushL(TCleanupItem(CandidateHalt,0));
+    BelleDisplay::SettledSize geometry;CandidateStateL(EPaused);CleanupStack::PushL(TCleanupItem(CandidateHalt,0));
     while((continuous||elapsed<TInt64(candidate->record.seconds)*1000000)&&!candidate->stop){
         const TInt64 delta=continuous?lifetime.StepUs():TInt64(clock.Us(last));last=clock.Now();elapsed+=delta;if(continuous&&delta>5000000){previousReady=EFalse;CandidateStateL(EPaused);if(web)web->Pause(ETrue);}else if(previousReady)active+=delta;candidate->heartbeat++;
         if(elapsed>=nextHealth){nextHealth=elapsed+(continuous?60000000:10000000);TInt bytes=0;TInt cells=User::AllocSize(bytes);TTimeIntervalMicroSeconds cpu;TInt cpuError=RThread().GetCpuTime(cpu);TBuf<200> health;health.Format(_L("HEALTH wall_us=%Ld active_us=%Ld heap_bytes=%d cells=%d thread_cpu_us=%Ld cpu_error=%d state=%u frames=%u"),elapsed,active,bytes,cells,cpu.Int64(),cpuError,candidate->record.state,contentCount);Log(health);}
         TFileName current;CurrentL(current);if(current.CompareF(path))User::Leave(KErrInUse);
+        if(candidate->verified<0&&candidate->verified!=KErrNotReady)User::Leave(candidate->verified);
+        const TSize observed=image->ObservedL();if(observed!=image->Size()||image->NeedsRebuildL()){
+            if(previousReady){previousReady=EFalse;CandidateStateL(EPaused);}if(web)web->Pause(ETrue);
+            if(geometry.Observe(observed.iWidth,observed.iHeight)){const TUint epoch=image->GeometryL();TBuf<120> change;change.Format(_L("DISPLAY rebuild %dx%d -> %dx%d active_us=%Ld"),image->Size().iWidth,image->Size().iHeight,observed.iWidth,observed.iHeight,active);Log(change);FrameL(830,path,0,observed.iWidth,observed.iHeight);RefreshCandidatePagesL(path);image->ResizeL(path,observed,epoch);geometry.Reset();if(web){web->ResizeL(observed);seq=0;}source=-1;next=active;Log(_L("DISPLAY resources rebuilt; original recovery journal retained"));}
+            User::After(100000);continue;
+        }
         const TBool desktopReady=DesktopReadyL(ws,*light);consumer=candidate->consumer;const ConsumerWatch::Health health=consumerWatch.Sample(consumer,elapsed,desktopReady);
         if(health==ConsumerWatch::Failed){TBuf<320> detail;detail.Format(_L("CONSUMER timeout wall_us=%Ld active_us=%Ld gap_us=%Ld loop_delta_us=%Ld counter=%u state=%u stop=%d verified=%d focus_group=%d"),elapsed,active,TInt64(consumerWatch.Age(elapsed)),delta,consumer,candidate->record.state,candidate->stop,candidate->verified,ws.GetFocusWindowGroup());Log(detail);Log(_L("CANDIDATE consumer heartbeat timed out"));User::Leave(KErrDied);}
         if(health==ConsumerWatch::Waiting&&!consumerWaiting){Log(_L("CONSUMER waiting for fresh heartbeat; content paused"));consumerWaiting=ETrue;}
         else if(health==ConsumerWatch::Ready&&consumerWaiting){Log(desktopReady?_L("CONSUMER heartbeat resumed; reacquiring drawing resources"):_L("CONSUMER wait deferred while desktop is not foreground"));consumerWaiting=EFalse;}
-        TBool ready=desktopReady&&health==ConsumerWatch::Ready;if(ready!=previousReady){
+        TBool ready=desktopReady&&health==ConsumerWatch::Ready&&BelleDisplay::Allowed(image->Size().iWidth,image->Size().iHeight,policy.orientation);if(ready!=previousReady){
             if(ready){
                 TRAPD(refresh,image->RefreshL(path));
                 if(refresh==KErrNotSupported&&image->CompressedTarget()){
                     CandidateStateL(EPaused);if(web)web->Pause(ETrue);
                     RefreshCandidatePagesL(path);image->RefreshL(path);
                 }else User::LeaveIfError(refresh);
-                if(bitmap){bitmap->Reset();User::LeaveIfError(bitmap->Create(TSize(180,320),EColor64K));Log(_L("RESUME source bitmap recreated"));}
+                if(bitmap){bitmap->Reset();User::LeaveIfError(bitmap->Create(image->Size(),EColor64K));Log(_L("RESUME source bitmap recreated"));}
                 source=-1;lastWebProgress=active;resumeTrace=ETrue;
                 // Cache rebuilding is paused time, but still counts against the
                 // wall-clock test budget. Force the first video frame to repaint.
@@ -90,12 +98,12 @@ static void CandidatePlayL(TInt kind){
         if(active<next){User::After(TInt(Min(TInt64(video?33334:100000),next-active)));continue;}
         if(video)next=BelleVideoTiming::NextDueUs(active,video->fps,video->den);
         else next=(active/100000+1)*100000;
-        TUint began=clock.Now();TBool produced=ETrue;
-        if(video){TInt target=BelleVideoTiming::SourceFrame(active,video->fps,video->den,video->count);if(target==source)produced=EFalse;else {source=target;image->Blit(video->ReadL(source));}}
+        TUint began=clock.Now();TBool produced=ETrue;TInt readUs=0,blitUs=0;
+        if(video){TInt target=BelleVideoTiming::SourceFrame(active,video->fps,video->den,video->count);if(target==source)produced=EFalse;else {source=target;TUint read=clock.Now();CFbsBitmap& decoded=video->ReadL(source);readUs=clock.Us(read);TUint blit=clock.Now();image->Blit(decoded);blitUs=clock.Us(blit);}}
         else if(web){TInt render=0,copy=0;if(resumeTrace)Log(_L("RESUME before web buffer read"));produced=web->ReadL(*bitmap,seq,render,copy);if(!produced&&active-lastWebProgress>10000000){Log(_L("STREAM no frame progress for 10 active seconds"));User::Leave(KErrTimedOut);}if(produced){lastWebProgress=active;if(resumeTrace)Log(_L("RESUME before FBS blit"));source=seq;image->Blit(*bitmap);if(resumeTrace)Log(_L("RESUME FBS blit complete"));resumeTrace=EFalse;}}
         else {image->Paint(++source);}
         if(produced)contentCount++;
-        if(produced&&(!continuous||elapsed>=nextMetric)){nextMetric=elapsed+10000000;TInt metricSize=0;User::LeaveIfError(metrics.Size(metricSize));if(metricSize>1024*1024){User::LeaveIfError(metrics.SetSize(0));TInt position=0;User::LeaveIfError(metrics.Seek(ESeekStart,position));User::LeaveIfError(metrics.Write(_L8("wall_us,active_us,source,work_us,consumer\n")));}TBuf8<160> row;row.Format(_L8("%Ld,%Ld,%d,%d,%u\n"),elapsed,active,source,clock.Us(began),consumer);User::LeaveIfError(metrics.Write(row));}
+        if(produced&&(!continuous||elapsed>=nextMetric)){nextMetric=elapsed+10000000;TInt metricSize=0;User::LeaveIfError(metrics.Size(metricSize));if(metricSize>1024*1024){User::LeaveIfError(metrics.SetSize(0));TInt position=0;User::LeaveIfError(metrics.Seek(ESeekStart,position));User::LeaveIfError(metrics.Write(_L8("wall_us,active_us,source,work_us,consumer,read_us,blit_us\n")));}TBuf8<160> row;row.Format(_L8("%Ld,%Ld,%d,%d,%u,%d,%d\n"),elapsed,active,source,clock.Us(began),consumer,readUs,blitUs);User::LeaveIfError(metrics.Write(row));}
     }
     Log(_L("CANDIDATE loop completed; entering cleanup"));CandidateStateL(EStopping);CleanupStack::PopAndDestroy();if(web)web->Pause(ETrue);User::LeaveIfError(metrics.Flush());CleanupStack::PopAndDestroy(&metrics);
     if(bitmap)CleanupStack::PopAndDestroy(bitmap);if(web)CleanupStack::PopAndDestroy(web);if(video)CleanupStack::PopAndDestroy(video);

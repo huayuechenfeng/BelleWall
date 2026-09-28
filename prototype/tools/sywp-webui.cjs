@@ -17,7 +17,7 @@ function start(port=8765,base=path.resolve(__dirname,'../../build/sywp-webui')){
    const fd=fs.openSync(input,'wx');let size=0;try{for await(const b of req){size+=b.length;if(size>512*1024*1024)throw Error('Upload exceeds 512 MiB');fs.writeSync(fd,b);}}finally{fs.closeSync(fd);}
    let result=output,type='application/vnd.bellewall.sywp';
    if(url.pathname==='/preview'){
-    const bytes=fs.readFileSync(input),info=mpkg.parse(bytes),kind=mpkg.classify(bytes,info);if(kind.kind!=='video')throw Error('这个 MPKG 是实时场景，请先预渲染成视频。');
+    const bytes=fs.readFileSync(input),info=mpkg.parse(bytes),kind=mpkg.classify(bytes,info);if(kind.kind!=='video')throw Error('Realtime scene unsupported; pre-render to video');
     const entry=info.entries.find(e=>e.name===kind.entry);result=path.join(dir,'preview.mp4');fs.writeFileSync(result,bytes.subarray(entry.absoluteOffset,entry.absoluteOffset+entry.size));type='video/mp4';
    }else if(ext==='html')fs.writeFileSync(output,encode({format:'sywp',version:1,title:String(options.title||'网页壁纸').slice(0,120),kind:'web',width:Number(options.width??180),height:Number(options.height??320),loop:true,pause:'resume',entry:'index.html',display:{...display,orientation:options.orientation||'auto',fit:options.fit||'cover',background:options.background||'#000000'}},fs.readFileSync(input)));
    else await new Promise((resolve,reject)=>{const child=cp.spawn(process.execPath,[path.join(__dirname,'prepare-sywp.cjs'),input,output,JSON.stringify(options)],{windowsHide:true});let error='';child.stdout.resume();child.stderr.on('data',b=>{error=(error+b).slice(-8192);});child.on('error',reject);child.on('exit',code=>code?reject(Error(error||'Conversion failed')):resolve());});

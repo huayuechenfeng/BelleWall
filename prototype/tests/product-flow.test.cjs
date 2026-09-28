@@ -17,6 +17,10 @@ test('real conversion distinguishes cover crop, contain padding and stretch pixe
   assert.equal(at(contain,4,0),0);assert.notEqual(at(contain,4,8),0);assert.notEqual(at(stretch,4,0),0);
   assert.equal(contain.manifest.display.fit,'contain');assert.equal(stretch.manifest.frames,2);
   assert.equal(mp4.manifest.container,'mp4');assert.equal(mp4.manifest.codec,'mpeg4-part2');assert.deepEqual(mp4.manifest.requiredFeatures,['video-mp4v-v1']);assert.equal(mp4.manifest.frames,2);
+  const allKey=make('all-keyframes',{encoding:'mp4',gop:1});
+  const syncFrames=p=>{const at=p.indexOf(Buffer.from('stss'));return at<0?2:p.readUInt32BE(at+8);};
+  assert.equal(syncFrames(allKey.payload),2);assert.equal(syncFrames(mp4.payload),1);
+  assert.throws(()=>make('invalid-gop',{encoding:'mp4',gop:0}),/Keyframe interval/);
   assert.throws(()=>sywp.encode(mp4.manifest,Buffer.from(mp4.payload).fill(0,4,8)),/MP4/);
  }finally{clean(dir);}
 });

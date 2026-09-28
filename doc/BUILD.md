@@ -30,3 +30,14 @@ node prototype/tools/bundle-release-tools.cjs build/release-1.0.0/tools-r3
 暂存脚本默认读取 `C:/msys64` 的工具链版权文件，可用 `BELLEWALL_MSYS_ROOT` 覆盖；构建脚本在 MSYS2 UCRT64 中运行。工具包携带未修改的完整 FFmpeg 源码压缩包、同一构建脚本及配置；无网络协议、外部编解码库或 GPL/nonfree 功能。1.0.3 候选增加 FFmpeg 自带的 MPEG-4 Part 2 编码器与 MP4 muxer。不要把其他 FFmpeg 二进制直接替换进发行包却沿用该来源声明。
 
 1.0.2 正式工具包使用 `node prototype/tools/bundle-release-tools.cjs build/release-1.0.2/tools`，再使用 `node prototype/tools/package-release-tools.cjs build/release-1.0.2/tools dist/release/1.0.2/BelleWall-1.0.2-tools.zip` 封装。ZIP 根目录直接包含 `Start-BelleWall.cmd`、README、`prototype/` 和 `ffmpeg/`，不增加外层目录。正式目录需保存 `CHANNEL.json`、`SHA256SUMS.txt`、验证清单与发布说明；运行 `node prototype/tools/verify-deliveries.cjs` 核对通道、文件名及哈希。GitHub Release 仅上传 `dist/release/<版本>/` 中的正式附件。
+
+
+## 1.1.0 旋转与双语测试候选
+
+在 PowerShell 设置 `BELLEWALL_CANDIDATE_VERSION=1.1.0`、`FFMPEG_BIN=<MP4V 便携版 bin>`、`BELLEWALL_TEST_FFMPEG=<开发机 FFmpeg>`，运行 `node prototype/tools/build-video-candidate.cjs build/checkpoints/BelleWall-1.1.0-display-language-candidate-v1`（重建时换一个未占用快照目录）。该脚本设置各组件相同版本，构建并验证组合安装包，生成九个视频／网页样本。不要使用未指定产品版本的底层历史构建命令来制作本轮包。
+
+运行全量测试时设 `BELLEWALL_PRODUCT_VERSION=1.1.0`：`node --test prototype/tests/*.test.cjs`。`node prototype/tools/check-webui-browser.cjs` 检查双语切换、选项保留、两种视频导出、HTML 导出及窄屏布局。浏览器截图与结果位于 build/product-browser-qa。`node prototype/tools/check-docs.cjs` 校验文档链接及冻结基线。
+
+沿用 package-video-test.cjs、bundle-release-tools.cjs 和 package-release-tools.cjs，输出到 `dist/test/1.1.0/`。交付目录只放两个测试 ZIP、README 和 CHANNEL.json，构建日志与独立组件保留在 build/checkpoints；生成 CHANNEL.json 后运行 verify-deliveries.cjs。ZIP 根目录直接放安装器或工具入口。正式 1.0.2 目录不变，本轮未发布正式 Release。
+
+手机字符串源为 prototype/translations/phone-en.json，build.cjs 自动运行 generate-ui-strings.cjs 生成 C++ 表；translations.test.cjs 检查用户可见中文和占位符覆盖。PC 文案在 sywp-webui.html 的 zh/en 表中。

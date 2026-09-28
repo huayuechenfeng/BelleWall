@@ -6,6 +6,7 @@ const root=path.resolve(__dirname,'../..');
 const kind=process.env.BELLEWALL_CANDIDATE_KIND==='video'?'video':'compat';
 const version=process.env.BELLEWALL_CANDIDATE_VERSION||(kind==='video'?'1.0.2':'1.0.1');
 if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid candidate version');
+const displayCandidate=Number(version.split('.')[0])>1||Number(version.split('.')[1])>=1;
 const sisVersion=version.replaceAll('.',',');
 const baseName='BelleWall-'+version+'-'+kind+'-candidate';
 const out=path.resolve(process.argv[2]||path.join(root,'build/checkpoints',baseName));
@@ -60,16 +61,35 @@ if(kind==='video'){
  run(process.env.BELLEWALL_TEST_FFMPEG||'ffmpeg',['-nostdin','-v','error','-f','lavfi','-i','testsrc2=size=360x640:rate=30:duration=2','-an','-c:v','mpeg4','-q:v','4','-bf','0','-pix_fmt','yuv420p','-movflags','+faststart',source],'sample-source');
  const {prepare}=require('./prepare-sywp.cjs'),{read}=require('./sywp.cjs');
  for(const fps of [20,30]){const file=path.join(out,`test-${fps}fps-360x640.sywp`);prepare(source,file,{title:`BelleWall ${fps} fps 测试`,width:360,height:640,fps,frames:fps*2});const parsed=read(file);if(parsed.manifest.fpsNumerator!==fps||parsed.manifest.width!==360||parsed.manifest.height!==640||parsed.manifest.frames!==fps*2)throw Error('Video test package mismatch');samples.push({name:path.basename(file),fps,width:360,height:640,frames:fps*2,bytes:fs.statSync(file).size,sha256:sha(file)});}
- if(version==='1.0.3'){
+ if(version==='1.0.3'||displayCandidate){
   const file=path.join(out,'test-30fps-360x640-mp4.sywp');prepare(source,file,{title:'BelleWall 30 fps MP4 测试',width:360,height:640,fps:30,frames:60,encoding:'mp4'});const parsed=read(file);
   if(parsed.manifest.container!=='mp4'||parsed.manifest.codec!=='mpeg4-part2'||parsed.manifest.frames!==60)throw Error('MP4 SYWP test package mismatch');
   samples.push({name:path.basename(file),encoding:'mp4',fps:30,width:360,height:640,frames:60,bytes:fs.statSync(file).size,sha256:sha(file)});
  }
 }
+if(kind==='video'&&displayCandidate){
+ const {prepare}=require('./prepare-sywp.cjs'),{encode,read,display}=require('./sywp.cjs');
+ const source=path.join(out,'test-pattern-30fps.mp4');
+ for(const [name,width,height,fit,orientation,encoding] of [
+  ['test-30fps-640x360-contain',640,360,'contain','auto','rgb565'],
+  ['test-20fps-640x480-E6-stretch',640,480,'stretch','auto','rgb565'],
+  ['test-30fps-360x640-portrait-only',360,640,'cover','portrait','rgb565'],
+  ['test-30fps-360x640-mp4-gop1',360,640,'cover','auto','mp4']]){
+  const fps=name.includes('20fps')?20:30,file=path.join(out,name+'.sywp');prepare(source,file,{title:name,width,height,fit,orientation,encoding,fps,frames:fps*2,gop:1});const manifest=read(file).manifest;
+  if(manifest.width!==width||manifest.height!==height||manifest.display.fit!==fit||manifest.display.orientation!==orientation)throw Error('Display sample mismatch');
+  samples.push({name:path.basename(file),encoding,fps,width,height,frames:manifest.frames,fit,orientation,bytes:fs.statSync(file).size,sha256:sha(file)});
+ }
+ for(const name of ['responsive','clock']){
+  const file=path.join(out,'test-web-'+name+'.sywp');fs.writeFileSync(file,encode({format:'sywp',version:1,title:'BelleWall '+name,kind:'web',width:180,height:320,entry:'index.html',loop:true,pause:'resume',display:{...display,fit:'contain'}},fs.readFileSync(path.join(root,'prototype/content',name+'.html'))));read(file);
+  samples.push({name:path.basename(file),encoding:'html',bytes:fs.statSync(file).size,sha256:sha(file)});
+ }
+}
+
 const report={version,status:kind==='video'?'offline-built-awaiting-E7-and-603-video-test':'offline-built-awaiting-E7-device-test',installer:path.basename(installer),sha256:sha(installer),components:components.map(([name,uid])=>({name,uid,sha256:sha(path.join(out,name))})),samples,romProfileVerification:'passed; see rom-profile-verification.log',genericLayoutVerification:'unique structural match on three ROM images; see generic-layout-verification.log',layoutProfiles:['Nokia 603 RM-779 113.010.1506','Nokia E7-00 RM-626 111.040.1511'],genericStaticHoldout:'Nokia 603 RM-779 111.020.0310',qtMinimum:'compiled Qt 4.7.4',pageCount:'1-8 default black pages',videoPlayback:kind==='video'?'180x320 or 360x640; RGB565 request ceiling 30 fps; MP4V GetFrame path in 1.0.3 is experimental and device performance unmeasured':'10 fps playback gate',libraryDrives:kind==='video'?['C','E','F']:['C'],limitations:kind==='video'?['20/30 fps and cross-drive playback still require E7 and 603 acceptance tests.','A 30 fps request ceiling is not a measured LCD frame rate.']:['E7 profile and generic fallback have not been accepted by a real playback and restoration test.','A structural match is an admission check, not proof that every Belle firmware behaves correctly.']};
+if(displayCandidate){report.status='offline-built-awaiting-device-rotation-language-and-performance-tests';report.videoPlayback='RGB565 and MP4V; request ceiling 30 fps; actual decoded/presented fps unmeasured';report.display={maximumDimension:2048,maximumPixels:1048576,fit:['cover','contain','stretch'],rotation:'pause, rebuild, resume; device validation pending',web:'responsive callback or authored-size fallback'};report.languages=['zh','en'];report.limitations=['E7 and 603 rotation, recovery and performance require device acceptance.','E6 screen geometry is covered offline; E6 firmware and device compatibility are unverified.','MP4 stepping and RGB565 extraction fall back when unsupported; hardware acceleration is unverified.'];}
 fs.writeFileSync(path.join(out,'validation.json'),JSON.stringify(report,null,2)+'\n');
 const readme=kind==='video'
  ? '# BelleWall '+version+' 视频候选\n\n这是 E7 与 603 实机测试包。先在旧版停止壁纸并完成桌面恢复，然后只安装 `'+path.basename(installer)+'`。组合包内含三个同版本组件；导入的壁纸库不在安装包载荷中。\n\n目录中的 `test-20fps-360x640.sywp` 和 `test-30fps-360x640.sywp` 是各两秒的 RGB565 动态测试图；1.0.3 另有 `test-30fps-360x640-mp4.sywp` 压缩版测试图。壁纸管理导入 SYWP 时，选文件后再选 C、E 或 F 存储盘；列表显示盘符。旧版 C 盘库和选中记录继续可读。原始 SYWP 文件不会被移动或删除。RGB565 视频支持 180×320／360×640，按素材时间最高 30 fps 请求帧；MP4 压缩版使用系统逐帧解码接口，速度需实机测试。请在两台手机上比较两种格式的导入耗时、实际流畅度、暂停恢复、停止后的桌面恢复，以及 E／F 盘读取与删除。C 盘仍保存少量配置、日志和恢复记录。\n\nE7 请保持竖屏并把当前页面改为原生默认黑色背景；603 也需原生默认黑色背景。测试过程先选“60 秒检查”。失败时记下错误码并从应用内导出诊断。30 fps 是调度上限，不是实机已达到的帧率。离线校验与哈希见 `validation.json`。\n'
  : '# BelleWall 1.0.1 兼容性候选\n\n这是离线构建的实机测试包，尚未在 E7 播放验收。安装前在旧版中停止壁纸并确认桌面已恢复；升级时只安装 `BelleWall-1.0.1-compat-candidate.sisx`，它包含三个配套组件。不要单独重复安装目录内的组件 SISX。导入的壁纸库不在本包载荷中。\n\nE7 测试：保持竖屏；当前只读检查显示 E7 有一页，背景为 `Clouds.jpg`，请先把这一页改为原生默认黑色背景。候选包接受 1 至 8 页。打开 BelleWall，选择已导入的壁纸并启动。观察能否进入播放、桌面是否实际更新；停止后检查原生背景是否恢复。若报错，请记下错误码，在应用内运行诊断并保存日志。\n\n603 FP2 与 E7 使用各自已核验的精确布局；未知固件可通过带通配位的结构匹配推导背景偏移和虚表地址。Nokia 603 的旧固件 111.020.0310 作为第三份 ROM 样本离线唯一命中，但没有实机验收。结构不匹配或多重命中会拒绝，不能据此声称所有 Belle 固件已兼容。Qt 运行库最低要求为编译版本 4.7.4。证书与设备权限仍须满足系统安装条件。验证明细及哈希见 `validation.json`，静态证据见 `rom-profile-verification.log` 和 `generic-layout-verification.log`。\n';
-fs.writeFileSync(path.join(out,'README.md'),readme);
+fs.writeFileSync(path.join(out,'README.md'),displayCandidate?fs.readFileSync(path.join(root,'doc/CANDIDATE-1.1.0.md'),'utf8'):readme);
 console.log('Candidate: '+installer);

@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;overflow:hidden;background:#081423}canvas{display:block}</style></head><body><canvas id="scene"></canvas><script>
+// ES5 for the phone's Qt WebKit. No timers or network requests.
+var canvas=document.getElementById('scene'),ctx=canvas.getContext('2d'),w=180,h=320;
+function bellewallResize(width,height){w=width;h=height;canvas.width=w;canvas.height=h;}
+function bellewallStep(activeMs){
+ ctx.fillStyle='#081423';ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='#9de8c6';ctx.lineWidth=4;ctx.strokeRect(6,6,w-12,h-12);
+ ctx.fillStyle='#e8fff5';ctx.textAlign='center';ctx.font=Math.max(16,Math.floor(Math.min(w,h)/12))+'px sans-serif';
+ ctx.fillText(w+' x '+h,w/2,h/2-12);ctx.fillText((activeMs/1000).toFixed(1)+' s',w/2,h/2+24);
+ ctx.fillStyle='#19d296';ctx.beginPath();ctx.arc(w/2+(w/2-24)*Math.sin(activeMs/1800),h*0.75,12,0,Math.PI*2,false);ctx.fill();
+}
+</script></body></html>

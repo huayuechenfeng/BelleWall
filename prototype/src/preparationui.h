@@ -51,7 +51,7 @@ static TInt PrepareWallpaper(TBool cleanup=EFalse){
 static QString PreparationError(TInt error){
     QString text;
     if(error==BellePreparation::JournalDamaged)text=BwText("组件准备记录损坏或不属于此版本，已保留记录。请通过「运行诊断」导出日志后反馈；不要卸载或删除记录。");
-    else if(error==BellePreparation::Environment)text=BwText("当前桌面库布局未通过核验，或 Qt 运行库低于编译版本。请保持竖屏并导出诊断；具体兼容范围见使用说明。");
+    else if(error==BellePreparation::Environment)text=BwText("当前桌面库布局未通过核验，或 Qt 运行库低于编译版本。请导出诊断；具体兼容范围见使用说明。");
     else if(error==BellePreparation::Background)text=BwText("请先将所有原生桌面页设为默认黑色背景，再重试播放。当前背景不会被替换。");
     else if(error==KErrInUse||error==KErrAlreadyExists)text=BwText("另一个操作尚未结束，或桌面仍待恢复。请先停止壁纸／重试恢复桌面，再播放。");
     else if(error==KErrDiskFull)text=BwText("手机 C 盘至少需要 8 MiB 可用空间来准备和恢复壁纸。请释放空间后重试。");

@@ -1,3 +1,4 @@
+require('./generate-ui-strings.cjs');
 'use strict';
 // Direct GCCE build; does not write into the SDK or depend on SBS/Perl drive mapping.
 const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto');

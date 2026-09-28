@@ -3,16 +3,17 @@
 #include <AknSkinsInternalCRKeys.h>
 #include "backgroundprofiles.h"
 #include "preparationpolicy.h"
+#include "displaypolicy.h"
 // Called inside BOTH registration locks, before any registration writes.
 static void PrepareEnvironmentL(RFs& files){
     const TSize size=CEikonEnv::Static()->ScreenDevice()->SizeInPixels();
-    if(size!=TSize(360,640))User::Leave(BellePreparation::Environment);
+    if(!BelleDisplay::Valid(size.iWidth,size.iHeight))User::Leave(BellePreparation::Environment);
     RLibrary library;User::LeaveIfError(library.Load(_L("xn3layoutengine.dll")));CleanupClosePushL(library);
     TLibraryFunction symbol=library.Lookup(237);if(!symbol)User::Leave(BellePreparation::Environment);
     TUint base=0;TBackgroundLayout layout;
     if(!FindBackgroundLayout(library,symbol,base,layout))User::Leave(BellePreparation::Environment);
-    TBuf<96> selected;if(layout.id==0)selected.Copy(_L("PREPARE generic structural layout and portrait size verified"));
-    else selected.Format(_L("PREPARE native layout=%d portrait size and code fingerprint verified"),layout.id);
+    TBuf<96> selected;if(layout.id==0)selected.Copy(_L("PREPARE generic structural layout and screen size verified"));
+    else selected.Format(_L("PREPARE native layout=%d screen size and code fingerprint verified"),layout.id);
     CleanupStack::PopAndDestroy(&library);Trace(selected);
     RImplInfoPtrArray entries;CleanupStack::PushL(TCleanupItem(FreeEntries,&entries));
     REComSession::ListImplementationsL(TUid::Uid(0x200286df),entries);TInt found=0;
