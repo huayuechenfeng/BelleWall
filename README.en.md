@@ -95,11 +95,11 @@ Importing adds the wallpaper to your library; **you must also start playback**. 
 
 All models use the same installer. BelleWall targets Symbian Belle; availability still depends on firmware, permissions and the homescreen environment.
 
-- **Nokia E7:** users have reported successful playback, rotation and language switching.
+- **Nokia E7:** the user confirmed **release 1.3.0 works on the device on 2026-10-06**, following earlier successful playback, rotation and language-switching tests.
 - **Nokia 603:** earlier versions have been tested on hardware; regression testing of the current release is pending.
 - **Nokia E6 and other models:** support for non-standard canvases has been added, but does not guarantee compatibility with every device. E6 has not been tested on hardware.
 
-The E7 feedback above applies to the preceding 1.1 implementation. The new 1.3.0 installer has not yet undergone a separate device acceptance test. See the [release notes](doc/RELEASE-1.3.0.md#english) for the verification scope.
+E7 acceptance is based on user testing of release 1.3.0. Current 603 regression and E6 device compatibility remain unverified; sustained frame rate and battery life have not been measured. See the [release notes](doc/RELEASE-1.3.0.md#english) for the verification scope.
 
 ## Frequently asked questions
 

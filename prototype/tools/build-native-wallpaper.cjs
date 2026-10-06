@@ -15,7 +15,7 @@ fs.writeFileSync(path.join(out,'probe.pkg'),'&EN\n#{"BelleWall Native"},(0xE7B31
 run(sdk+'/epoc32/tools/makesis.exe',['probe.pkg','probe.sis']);
 run(sdk+'/epoc32/tools/signsis.exe',['-s','probe.sis',path.join(dist,'bellepaper-selfsigned.sisx'),path.join(root,'build/signing/prototype.cer'),path.join(root,'build/signing/prototype.key')]);
 const report={purpose:'Bounded native wallpaper experiment with independent recovery guardian',capability:'ReadUserData+WriteUserData+ReadDeviceData+WriteDeviceData+SwEvent+PowerMgmt',exeSha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(dist,'bellepaper.exe'))).digest('hex')};
-fs.writeFileSync(path.join(root,'research/evidence/device/native-wallpaper-build.json'),JSON.stringify(report,null,2));console.log(report);
+fs.writeFileSync(path.join(out,'native-wallpaper-build.json'),JSON.stringify(report,null,2));console.log(report);
 
 
 

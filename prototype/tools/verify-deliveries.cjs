@@ -4,7 +4,7 @@ const root=path.resolve(__dirname,'../..'),dist=path.join(root,'dist');
 const sha=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 let checked=0;
 for(const channel of ['release','test']){
- const base=path.join(dist,channel);
+ const base=path.join(dist,channel);if(!fs.existsSync(base))continue;
  for(const version of fs.readdirSync(base)){
   const dir=path.join(base,version);if(!fs.statSync(dir).isDirectory())throw Error('Unexpected file in '+base);
   const manifest=JSON.parse(fs.readFileSync(path.join(dir,'CHANNEL.json'),'utf8'));

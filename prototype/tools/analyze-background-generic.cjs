@@ -4,11 +4,8 @@ const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=r
 const root=path.resolve(__dirname,'../..'),elf=(process.env.BELLE_SDK||'C:/QtSDK/Symbian/SDKs/SymbianSR1Qt474')+'/epoc32/tools/elf2e32.exe';
 const reportAll=process.argv.includes('--report-all');
 const inputs=process.argv.slice(2).filter(x=>x!=='--report-all');
-const files=inputs.length?inputs:[
- 'archive/build-before-1.0-20260927/device/rom-fp2/xn3layoutengine.dll',
- 'build/e7-diagnosis-20260927/xn3layoutengine.dll',
- 'archive/build-before-1.0-20260927/rom-603/xn3layoutengine.dll'
-];
+const files=inputs.length?inputs:Object.values(require('./rom-inputs.cjs').load());
+
 function run(file,mode){const p=cp.spawnSync(elf,['--e32input='+file,'--dump='+mode],{encoding:'utf8',windowsHide:true,maxBuffer:32*1024*1024});if(p.error||p.status)throw Error(p.error||p.stderr||p.stdout);return p.stdout;}
 function unpack(file){const image=fs.readFileSync(file),base=image.readUInt32LE(0x4c),size=image.readUInt32LE(0x30),code=Buffer.alloc(size);let n=0;
  for(const line of run(file,'c').split(/\r?\n/)){const m=line.match(/^([0-9a-f]{6,8}): ((?:[0-9a-f]{8} ){1,8})/i);if(!m)continue;if(parseInt(m[1],16)!==n)throw Error('Code gap');for(const word of m[2].trim().split(' ')){code.writeUInt32LE(parseInt(word,16),n);n+=4;}}

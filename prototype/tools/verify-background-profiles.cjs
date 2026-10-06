@@ -9,9 +9,10 @@ const headers={
   old:fs.readFileSync(path.join(root,'prototype/src/backgroundprofile.h'),'utf8'),
   multi:fs.readFileSync(path.join(root,'prototype/src/backgroundprofiles.h'),'utf8')
 };
+const roms=require('./rom-inputs.cjs').load();
 const images=[
-  {id:'Nokia 603',file:'archive/build-before-1.0-20260927/device/rom-fp2/xn3layoutengine.dll',hash:'76d6e4451d657f58a09f8de6313d4aac02c74a42927514b5f266df32730f5816',layout:'K603Layout',view:0x993d,end:0x41420,store:0x231da,checks:[[0x993c,'KBgFingerprint0','old'],[0x231ce,'KBgFingerprint1','old'],[0x31c02,'KBgFingerprint2','old'],[0x3231c,'KBgFingerprint3','old']]},
-  {id:'Nokia E7',file:'build/e7-diagnosis-20260927/xn3layoutengine.dll',hash:'f2203cbd0e83f7fdc7e69959be32aeea93a1063c8ef2a2cd42feb6e034900c54',layout:'KE7Layout',view:0x98c5,end:0x41074,store:0x23032,checks:[[0x98c4,'KE7View','multi'],[0x23026,'KE7Create','multi'],[0x3194e,'KE7Construct','multi'],[0x32078,'KE7Draw','multi']]}
+  {id:'Nokia 603',file:roms.nokia603_fp2,hash:'76d6e4451d657f58a09f8de6313d4aac02c74a42927514b5f266df32730f5816',layout:'K603Layout',view:0x993d,end:0x41420,store:0x231da,checks:[[0x993c,'KBgFingerprint0','old'],[0x231ce,'KBgFingerprint1','old'],[0x31c02,'KBgFingerprint2','old'],[0x3231c,'KBgFingerprint3','old']]},
+  {id:'Nokia E7',file:roms.nokia_e7,hash:'f2203cbd0e83f7fdc7e69959be32aeea93a1063c8ef2a2cd42feb6e034900c54',layout:'KE7Layout',view:0x98c5,end:0x41074,store:0x23032,checks:[[0x98c4,'KE7View','multi'],[0x23026,'KE7Create','multi'],[0x3194e,'KE7Construct','multi'],[0x32078,'KE7Draw','multi']]}
 ];
 function assert(ok,message){if(!ok)throw Error(message);}
 function run(file,option){const result=cp.spawnSync(elf2e32,['--e32input='+file,'--dump='+option],{encoding:'utf8',windowsHide:true,maxBuffer:32*1024*1024});if(result.error||result.status)throw Error(result.error||result.stderr||result.stdout);return result.stdout;}
@@ -27,7 +28,7 @@ function codeOf(file,header){const base=header.readUInt32LE(0x4c),size=header.re
     for(const word of match[2].trim().split(' ')){assert(written+4<=size,'Code dump overflow '+file);code.writeUInt32LE(parseInt(word,16),written);written+=4;}}
   assert(written===size,'Code dump truncated '+file);return {base,code};}
 const reports=[];
-for(const image of images){const file=path.join(root,image.file),header=fs.readFileSync(file),hash=crypto.createHash('sha256').update(header).digest('hex');
+for(const image of images){const file=image.file,header=fs.readFileSync(file),hash=crypto.createHash('sha256').update(header).digest('hex');
   assert(hash===image.hash,image.id+' ROM SHA-256 differs');const {base,code}=codeOf(file,header),exports=exportsOf(file),profile=layout(image.layout);
   assert((exports.get(237)&~1)===profile.viewAddress&&exports.get(237)===image.view,image.id+' View export differs');
   assert((exports.get(277)&~1)===image.end,image.id+' range witness differs');

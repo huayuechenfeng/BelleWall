@@ -4,7 +4,7 @@ const sywp=require('./sywp.cjs'),{prepare}=require('./prepare-sywp.cjs');
 const root=path.resolve(__dirname,'../..'),out=path.resolve(process.argv[2]||path.join(root,'build/product-assets'));
 if(fs.existsSync(out))throw Error('Asset directory exists; preserve it and select another');fs.mkdirSync(out,{recursive:true});
 const bin=process.env.FFMPEG_BIN||path.join(root,'build/ffmpeg-9.0.1-essentials_build/bin'),ffmpeg=path.join(bin,process.platform==='win32'?'ffmpeg.exe':'ffmpeg');
-const mp4=path.join(out,'demo.mp4'),r=cp.spawnSync(ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','testsrc2=size=180x320:rate=10:duration=3','-an','-c:v','libx264','-profile:v','baseline','-pix_fmt','yuv420p','-movflags','+faststart',mp4],{encoding:'utf8'});if(r.error||r.status)throw Error(r.error||r.stderr);
+const mp4=path.join(out,'demo.mp4'),r=cp.spawnSync(process.env.BELLEWALL_TEST_FFMPEG||ffmpeg,['-nostdin','-v','error','-f','lavfi','-i','testsrc2=size=180x320:rate=10:duration=3','-an','-c:v','libx264','-profile:v','baseline','-pix_fmt','yuv420p','-movflags','+faststart',mp4],{encoding:'utf8'});if(r.error||r.status)throw Error(r.error||r.stderr);
 prepare(mp4,path.join(out,'video.sywp'),{title:'BelleWall 色彩测试',width:180,height:320,fps:10,frames:30});
 const clock=fs.readFileSync(path.join(root,'prototype/content/clock.html'));
 fs.writeFileSync(path.join(out,'web.sywp'),sywp.encode({format:'sywp',version:1,title:'BelleWall 实时时钟',kind:'web',width:180,height:320,loop:true,pause:'resume',entry:'index.html',display:sywp.display},clock));

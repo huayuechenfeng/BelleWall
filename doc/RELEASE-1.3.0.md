@@ -27,7 +27,7 @@
 
 ### 验证范围
 
-用户已在 E7 的 1.1 系列实现上确认 RGB565 播放、横屏及双语正常；1.3.0 沿用该实现并整合 MP4 禁用与新图标。新 1.3.0 安装包尚未单独在真机安装验收。非标准屏仅有尺寸识别／离线覆盖，不能据此认定 E6 已兼容；603 本轮结果待反馈。离线验证已通过：66 项测试、新图标与双语转换流程的浏览器检查、三个组件的 UID／版本／依赖／安装位置／载荷／签名核验，以及 ZIP 内容与文件哈希检查。
+**2026-10-06：用户已确认 1.3.0 正式版在 Nokia E7 上可用。** 此前的实机反馈也已确认 RGB565 播放、横屏及双语正常；1.3.0 整合 MP4 禁用与新图标。非标准屏仅有尺寸识别／离线覆盖，不能据此认定 E6 已兼容；603 本轮结果待反馈。离线验证已通过：66 项测试、新图标与双语转换流程的浏览器检查、三个组件的 UID／版本／依赖／安装位置／载荷／签名核验，以及 ZIP 内容与文件哈希检查。
 
 ## English
 
@@ -58,7 +58,7 @@ The app installs on drive C; the wallpaper library can use E or F. Qt 4.7.4 or l
 
 ### Verification scope
 
-Users have confirmed RGB565 playback, rotation and language switching on E7 with the preceding 1.1 implementation. Version 1.3.0 retains that implementation and includes MP4 disabling and the new icon. **The new 1.3.0 installer itself has not yet undergone a separate device acceptance test.**
+**2026-10-06: the user confirmed that release 1.3.0 works on Nokia E7.** Earlier device feedback also confirmed RGB565 playback, rotation and language switching. Version 1.3.0 includes MP4 disabling and the new icon. Sustained frame rate and battery life have not been measured.
 
 Non-standard screen support has viewport detection and offline coverage, but this does not establish E6 hardware compatibility. Current 603 regression results are also pending. A 30 fps setting is a request limit, not a measured sustained frame rate; no new device import-time measurement is available.
 

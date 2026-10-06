@@ -4,8 +4,7 @@ const root=path.resolve(__dirname,'../..'),dist=path.join(root,'dist'),out=path.
 const version=process.env.BELLEWALL_PRODUCT_VERSION||'1.0.0';
 if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid product version');
 const sisVersion=version.replaceAll('.',',');
-const previous=path.join(dist,'daily-candidate-20260920-r3');
-const accepted=fs.existsSync(previous)?previous:path.join(root,'archive/dist-checkpoints-20260927/daily-candidate-20260920-r3');
+const accepted=path.join(root,'prototype/baseline');
 if(!process.argv[2])throw Error('Pass the freshly built longrun renderer checkpoint');
 const longrun=path.resolve(process.argv[2]);
 const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -19,4 +18,4 @@ fs.writeFileSync(path.join(out,'helper.pkg'),'&EN\n#{"BelleWall Renderer Helper"
 for(const [exe,args] of [['makesis.exe',['helper.pkg','helper.sis']],['signsis.exe',['-s','helper.sis',path.join(dist,'bellerender-selfsigned.sisx'),path.join(root,'build/signing/prototype.cer'),path.join(root,'build/signing/prototype.key')]]]){const r=cp.spawnSync(path.join(sdk,'epoc32/tools',exe),args,{cwd:out,encoding:'utf8',windowsHide:true});if(r.error||r.status)throw Error(r.error||r.stdout+r.stderr);}
 const dump=path.join(out,'extracted');fs.mkdirSync(dump,{recursive:true});const check=cp.spawnSync(path.join(sdk,'epoc32/tools/dumpsis.exe'),['-x','-d',dump,path.join(dist,'bellerender-selfsigned.sisx')],{encoding:'utf8',windowsHide:true});if(check.error||check.status)throw Error(check.error||check.stdout+check.stderr);
 files.forEach(([name],i)=>{if(sha(path.join(dist,name))!==sha(path.join(dump,'file'+i)))throw Error('Helper SIS payload mismatch');});
-console.log('1.0.0 helper: longrun v2 plus unchanged r3 recovery files; all 5 payloads match.');
+console.log(version+' helper: fresh renderer plus hash-verified public recovery baseline; all 5 payloads match.');
