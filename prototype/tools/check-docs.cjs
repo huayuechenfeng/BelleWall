@@ -3,7 +3,7 @@
 const fs=require('fs'),path=require('path'),crypto=require('crypto'),assert=require('assert/strict');
 const root=path.resolve(__dirname,'../..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const state={sisVersion:'1.0.0'};
-const files=['README.md',...fs.readdirSync(path.join(root,'doc')).filter(n=>n.endsWith('.md')).map(n=>'doc/'+n)];
+const files=['README.md','README.en.md',...fs.readdirSync(path.join(root,'doc')).filter(n=>n.endsWith('.md')).map(n=>'doc/'+n)];
 let links=0;
 for(const file of files){
  for(const m of read(file).matchAll(/\]\(([^)]+)\)/g)){

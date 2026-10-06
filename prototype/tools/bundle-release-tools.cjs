@@ -8,7 +8,7 @@ const provenance=JSON.parse(fs.readFileSync(path.join(ffmpeg,'SOURCE.json'),'utf
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 if(hash(path.join(ffmpeg,'bin/ffmpeg.exe'))!==provenance.binarySha256||hash(path.join(ffmpeg,'source/ffmpeg-9.0.1.tar.xz'))!==provenance.sourceSha256)throw Error('Bundled FFmpeg provenance hash mismatch');
 function copy(from,to=from){const dst=path.join(out,to);fs.mkdirSync(path.dirname(dst),{recursive:true});fs.copyFileSync(path.join(root,from),dst);}
-for(const n of ['README.md','LICENSE','assets/branding/bellewall-icon.svg'])copy(n);
+for(const n of ['README.md','README.en.md','LICENSE','assets/branding/bellewall-icon.svg'])copy(n);
 for(const n of fs.readdirSync(path.join(root,'doc')).filter(n=>n.endsWith('.md')))copy('doc/'+n);
 for(const n of fs.readdirSync(path.join(root,'LICENSES')))copy('LICENSES/'+n);
 for(const n of ['sywp-webui.cjs','sywp-webui.html','sywp.cjs','mp4-profile.cjs','prepare-sywp.cjs','ffmpeg.cjs','mpkg.cjs'])copy('prototype/tools/'+n);
