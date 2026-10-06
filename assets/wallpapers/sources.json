@@ -1,0 +1,57 @@
+{
+  "license": "CC0-1.0",
+  "files": [
+    {
+      "file": "assets/wallpapers/sources/moonlit-mountains/sky.png",
+      "sha256": "a6d20dccd8f4bd8a9179c23c504c9d3ec7c938a465a8b3a8d8dd4afcdc67d392"
+    },
+    {
+      "file": "assets/wallpapers/sources/moonlit-mountains/far-clouds.png",
+      "sha256": "cbb54d92bb8baaefea954208a1c64ebec6a418d3bab6b23d36cefeccac46aeca"
+    },
+    {
+      "file": "assets/wallpapers/sources/moonlit-mountains/near-clouds.png",
+      "sha256": "137314921e1279a0be60e7960e6c5233626d1be197987453c6c9194916d07095"
+    },
+    {
+      "file": "assets/wallpapers/sources/moonlit-mountains/far-mountains.png",
+      "sha256": "5aa7c33cc8ce0a9f74518f709874533126133409da494b50151207e17c6b7773"
+    },
+    {
+      "file": "assets/wallpapers/sources/moonlit-mountains/mountains.png",
+      "sha256": "b8d08593b521ae12de44d78d79b0d9f92ceb08e4e08bfd8cdbde8e9d32742c1e"
+    },
+    {
+      "file": "assets/wallpapers/sources/moonlit-mountains/trees.png",
+      "sha256": "4d0bd09876e423425e26c8081fa84a87f812da7d0eeaaf35d03be54e9021e632"
+    },
+    {
+      "file": "assets/wallpapers/sources/neon-city/back.png",
+      "sha256": "97ccd26de237d4602d99eb0e3581a845a1e65dcdc716e064ba1ca3ae5df910f0"
+    },
+    {
+      "file": "assets/wallpapers/sources/neon-city/middle.png",
+      "sha256": "c5361758232bdfd1cbf9ce3195c16daf0b7e6136ac15e8a6dd4936877d3da0f8"
+    },
+    {
+      "file": "assets/wallpapers/sources/neon-city/foreground.png",
+      "sha256": "ccdd6aa804b0c5d6417fb552a4b8541720710231ce1546de8472cafea952642d"
+    },
+    {
+      "file": "assets/wallpapers/sources/pixel-planet/planet.png",
+      "sha256": "9deae581a07ad48f254d217acf87c9f06768bbd311051158873f7ed8054be112"
+    },
+    {
+      "file": "assets/wallpapers/sources/pixel-planet/background.png",
+      "sha256": "e9a0b9d567dd9d7fcc01741782315b3ef543460c30b3cadbae61915e50c0c5d0"
+    },
+    {
+      "file": "assets/wallpapers/sources/pixel-planet/stars-far.png",
+      "sha256": "3dbff5e2d8527f8090feb81d7836560a128e27410ce65c06a2dd039b57c7032b"
+    },
+    {
+      "file": "assets/wallpapers/sources/pixel-planet/stars-near.png",
+      "sha256": "9263148691cb6eae827109ba1c68f3585d1ccbd9a618c0b0edced2ce7a8fbe01"
+    }
+  ]
+}

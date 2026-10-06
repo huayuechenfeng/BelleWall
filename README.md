@@ -28,6 +28,20 @@ BelleWall 可以在手机原生桌面的图标和小组件下播放动态壁纸�
 
 视频当前使用 RGB565 图片帧播放，文件会比原视频大。30 fps 是播放请求上限，实际流畅度取决于手机与壁纸内容。
 
+## 壁纸演示
+
+三款免费像素动画壁纸，可直接导入 BelleWall 1.3：
+
+| 霓虹城市 | 月夜群山 | 像素星球 |
+| --- | --- | --- |
+| ![霓虹城市动画](assets/wallpapers/previews/neon-city.gif) | ![月夜群山动画](assets/wallpapers/previews/moonlit-mountains.gif) | ![像素星球旋转动画](assets/wallpapers/previews/pixel-planet.gif) |
+| [下载 SYWP](https://github.com/huayuechenfeng/BelleWall/releases/download/v1.3.0/BelleWall-Neon-City.sywp) | [下载 SYWP](https://github.com/huayuechenfeng/BelleWall/releases/download/v1.3.0/BelleWall-Moonlit-Mountains.sywp) | [下载 SYWP](https://github.com/huayuechenfeng/BelleWall/releases/download/v1.3.0/BelleWall-Pixel-Planet.sywp) |
+| 8 秒 · 70.3 MiB | 8 秒 · 70.3 MiB | 7.7 秒 · 67.7 MiB |
+
+均为 **360×640、20 fps 的 RGB565 帧壁纸**。复制到手机后，在**壁纸库**中导入并启动。建议选择 E/F 盘，并为导入后的副本预留空间。横屏保持完整画面，空余区域留黑边。
+
+上图是实际转换帧缩小到 180×320、10 fps 的 GIF 预览，并非手机实拍。文件格式与循环检查已通过，这三款壁纸尚待手机实测。原始美术均为 **CC0**：[素材来源、署名及重新生成方法](assets/wallpapers/CREDITS.txt)。
+
 ## 下载
 
 当前正式版：**1.3.0** · [本版更新说明](doc/RELEASE-1.3.0.md)

@@ -1,0 +1,52 @@
+BelleWall 示例壁纸 / Demo wallpapers
+===================================
+
+原始美术均以 CC0 发布；允许修改、再分发及商业使用，无需署名。
+All original artwork is published under CC0, allowing modification,
+redistribution and commercial use without mandatory attribution.
+License: https://creativecommons.org/publicdomain/zero/1.0/
+Source pages checked: 2026-10-06.
+
+霓虹城市 / Neon City
+Original: Cyberpunk Street Environment (free basic pack, Version 2)
+Artist: ansimuz
+Source: https://ansimuz.itch.io/cyberpunk-street-environment
+Changes: layered parallax loop, portrait crop and RGB565 conversion.
+修改：分层视差循环、竖屏裁切及 RGB565 转换。
+
+月夜群山 / Moonlit Mountains
+Original: Mountain Dusk Parallax Background (Version A)
+Artist: ansimuz
+Source: https://ansimuz.itch.io/mountain-dusk-parallax-background
+Changes: layered parallax loop, portrait crop and RGB565 conversion.
+修改：分层视差循环、竖屏裁切及 RGB565 转换。
+
+像素星球 / Pixel Planet
+Original: Void Environment Pack
+Artist: Baldur; distributed by Foozle (credits from the downloaded Readme).
+Artist link: https://twitter.com/the__baldur
+Source: https://foozlecc.itch.io/void-environment-pack
+Changes: Earth-like planet and star layers composited into a portrait loop;
+background timing resampled to the planet's 7.7-second cycle; RGB565 conversion.
+修改：类地行星与星空分层合成为竖屏循环，背景周期调整为 7.7 秒并转换 RGB565。
+
+所有示例均为无声、360×640、20 fps RGB565 SYWP，适用于 BelleWall 1.3。
+城市和群山各 8 秒；星球 7.7 秒。横屏使用 contain 保持完整画面，留黑边。
+GIF 为实际 RGB565 输出缩小到 180×320、10 fps 的预览，并非手机实拍。
+将 SYWP 复制到手机，在壁纸库导入并启动；建议选择 E/F 盘并预留导入空间。
+已进行文件校验与循环边界检查，尚待这三款壁纸的手机实测。
+
+All demos are silent 360×640, 20 fps RGB565 SYWP packages for BelleWall 1.3.
+City and mountains loop every 8 seconds; planet every 7.7 seconds.
+Contain fitting preserves the composition with black margins in landscape.
+GIFs show actual RGB565 output reduced to 180×320 at 10 fps, not phone captures.
+Copy a SYWP to your phone, import it in Wallpaper library and start playback.
+Prefer E/F storage and leave room for the imported copy.
+Package integrity and loop boundaries were checked; device testing is pending.
+
+Reproduce / 重新生成（仓库根目录 / repository root）:
+1. Install Python dependencies Pillow and NumPy.
+2. python prototype/tools/render-demo-wallpapers.py
+3. node prototype/tools/package-demo-wallpapers.cjs
+Selected original PNG hashes are in sources.json; outputs go to
+build/wallpaper-pack-v1/. Existing raw/package outputs are never overwritten.

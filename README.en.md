@@ -28,6 +28,20 @@ BelleWall plays animated wallpapers behind your phone's native homescreen icons 
 
 Video wallpapers currently use RGB565 image frames, so files are larger than the source video. 30 fps is the playback request limit; actual smoothness depends on your phone and wallpaper.
 
+## Wallpaper demos
+
+Three free pixel-art wallpapers, ready to import into BelleWall 1.3:
+
+| Neon City | Moonlit Mountains | Pixel Planet |
+| --- | --- | --- |
+| ![Neon city animation](assets/wallpapers/previews/neon-city.gif) | ![Moonlit mountains animation](assets/wallpapers/previews/moonlit-mountains.gif) | ![Rotating pixel planet](assets/wallpapers/previews/pixel-planet.gif) |
+| [Download SYWP](https://github.com/huayuechenfeng/BelleWall/releases/download/v1.3.0/BelleWall-Neon-City.sywp) | [Download SYWP](https://github.com/huayuechenfeng/BelleWall/releases/download/v1.3.0/BelleWall-Moonlit-Mountains.sywp) | [Download SYWP](https://github.com/huayuechenfeng/BelleWall/releases/download/v1.3.0/BelleWall-Pixel-Planet.sywp) |
+| 8 seconds · 70.3 MiB | 8 seconds · 70.3 MiB | 7.7 seconds · 67.7 MiB |
+
+All three use **360×640 RGB565 frames at 20 fps**. Copy a package to your phone, import it in **Wallpaper library**, then start playback. Prefer E/F storage and leave space for the imported copy. Landscape uses contain fitting with black margins.
+
+These GIFs preview the actual converted frames at 180×320 and 10 fps; they are not phone recordings. Package and loop checks have passed; testing these three wallpapers on phones is pending. The original artwork is **CC0**: [sources, credits and reproduction instructions](assets/wallpapers/CREDITS.txt).
+
 ## Download
 
 Current release: **1.3.0** · [What's new](doc/RELEASE-1.3.0.md#english)
