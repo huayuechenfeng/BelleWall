@@ -4,10 +4,11 @@
 #include <coecntrl.h>
 #include "candidatesession.h"
 #include "displaypolicy.h"
+#include "renderreadiness.h"
 _LIT(KRedrawChunk,"BelleWallDirtyRectsV3");
 _LIT(KRedrawMutex,"BelleWallDirtyRectsLockV3");
 const TUint KRedrawMagic=0x33524442;
-struct TRedrawFrame {TUint magic;TUint owner;TUint nonceLo;TUint nonceHi;TUint sequence;TUint acknowledged;TInt left;TInt top;TInt right;TInt bottom;TInt width,height,observedWidth,observedHeight;TUint geometry,targetGeometry;};
+struct TRedrawFrame {TUint magic;TUint owner;TUint nonceLo;TUint nonceHi;TUint sequence;TUint acknowledged;TInt left;TInt top;TInt right;TInt bottom;TInt width,height,observedWidth,observedHeight;TUint geometry,targetGeometry;TUint consumerProtocol;};
 class CRedrawPublisher:public CBase {
 public:
     static CRedrawPublisher* NewL(){CRedrawPublisher* self=new(ELeave)CRedrawPublisher;CleanupStack::PushL(self);User::LeaveIfError(self->iMutex.CreateGlobal(KRedrawMutex));User::LeaveIfError(self->iChunk.CreateGlobal(KRedrawChunk,sizeof(TRedrawFrame),sizeof(TRedrawFrame)));self->iFrame=reinterpret_cast<TRedrawFrame*>(self->iChunk.Base());Mem::FillZ(self->iFrame,sizeof(TRedrawFrame));self->iFrame->owner=RProcess().Id().Id();RChunk live;TCandidateShared* session=CandidateOpen(live);if(session){self->iFrame->nonceLo=session->record.nonceLo;self->iFrame->nonceHi=session->record.nonceHi;}live.Close();self->iFrame->magic=KRedrawMagic;CleanupStack::Pop(self);return self;}
@@ -17,6 +18,7 @@ public:
     void TargetL(const TSize& size){TargetL(size,GeometryL());}
     TUint GeometryL(){User::LeaveIfError(iMutex.Wait(100000));TUint epoch=iFrame->geometry;iMutex.Signal();return epoch;}
     void TargetL(const TSize& size,TUint epoch){User::LeaveIfError(iMutex.Wait(100000));iFrame->width=size.iWidth;iFrame->height=size.iHeight;iFrame->targetGeometry=epoch;iFrame->acknowledged=iFrame->sequence;if(!iFrame->observedWidth){iFrame->observedWidth=size.iWidth;iFrame->observedHeight=size.iHeight;}iMutex.Signal();}
+    TUint ConsumerProtocolL(){User::LeaveIfError(iMutex.Wait(100000));TUint protocol=iFrame->consumerProtocol;iMutex.Signal();return protocol;}
     TBool NeedsRebuildL(){User::LeaveIfError(iMutex.Wait(100000));TBool changed=iFrame->geometry!=iFrame->targetGeometry;iMutex.Signal();return changed;}
     TSize ObservedL(){User::LeaveIfError(iMutex.Wait(100000));TSize size(iFrame->observedWidth,iFrame->observedHeight);iMutex.Signal();return size;}
     void Publish(const TRect& dirty){User::LeaveIfError(iMutex.Wait(100000));TRect r(dirty);r.Intersection(TRect(TPoint(0,0),TSize(iFrame->width,iFrame->height)));if(r.IsEmpty()||!BelleDisplay::CurrentGeometry(iFrame->geometry,iFrame->targetGeometry,iFrame->observedWidth,iFrame->observedHeight,iFrame->width,iFrame->height)){iMutex.Signal();return;}if(iFrame->sequence!=iFrame->acknowledged)r.BoundingRect(TRect(iFrame->left,iFrame->top,iFrame->right,iFrame->bottom));iFrame->left=r.iTl.iX;iFrame->top=r.iTl.iY;iFrame->right=r.iBr.iX;iFrame->bottom=r.iBr.iY;iFrame->sequence++;iMutex.Signal();}
@@ -32,6 +34,7 @@ static TInt InvalidatePublishedRect(CCoeControl& bg,RWsSession& ws,TInt& area){
     if(chunk.Size()<TInt(sizeof(TRedrawFrame))){chunk.Close();mutex.Close();return KErrCorrupt;}
     if(mutex.Wait(1)!=KErrNone){chunk.Close();mutex.Close();return 0;}TRedrawFrame* frame=reinterpret_cast<TRedrawFrame*>(chunk.Base());TInt result=0;
     RChunk live;TCandidateShared* session=CandidateOpen(live);TBool running=session&&session->record.state==ERunning;TBool own=session&&!session->stop&&session->record.owner==frame->owner&&session->record.nonceLo==frame->nonceLo&&session->record.nonceHi==frame->nonceHi;live.Close();
+    if(own&&frame->magic==KRedrawMagic&&BelleDisplay::Valid(bg.Size().iWidth,bg.Size().iHeight)&&bg.OwnsWindow())frame->consumerProtocol=BelleRenderReadiness::Protocol;
     if(!own)result=0;else if(frame->magic==0)result=0;else if(frame->magic!=KRedrawMagic)result=KErrCorrupt;
     else if(!BelleDisplay::Valid(bg.Size().iWidth,bg.Size().iHeight)||!bg.OwnsWindow())result=0;
     else if(frame->observedWidth!=bg.Size().iWidth||frame->observedHeight!=bg.Size().iHeight){frame->observedWidth=bg.Size().iWidth;frame->observedHeight=bg.Size().iHeight;frame->geometry++;frame->acknowledged=frame->sequence;}

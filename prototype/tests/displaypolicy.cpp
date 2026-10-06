@@ -1,4 +1,5 @@
 #include "../src/displaypolicy.h"
+#include "../src/renderreadiness.h"
 #include <cassert>
 using namespace BelleDisplay;
 int main(){
@@ -16,5 +17,16 @@ int main(){
     assert(!CurrentGeometry(1,0,360,640,360,640)); // same-sized cache recreation
     assert(!CurrentGeometry(2,1,640,360,640,360)); // layout changed during rebuild
     assert(CurrentGeometry(2,2,640,360,640,360));
+    using BelleRenderReadiness::Handshake;
+    Handshake missing;
+    for(int n=0;n<49;n++)assert(missing.Observe(0,100000,true)==Handshake::Pending);
+    assert(missing.Observe(0,100000,true)==Handshake::Failed); // old DLL can heartbeat forever
+    Handshake current;assert(current.Observe(BelleRenderReadiness::Protocol,100000,true)==Handshake::Ready);
+    Handshake paused;assert(paused.Observe(0,4900000,true)==Handshake::Pending);
+    assert(paused.Observe(0,100000,false)==Handshake::Pending);
+    assert(paused.Observe(0,100000,true)==Handshake::Pending);
+    assert(paused.Observe(0,10000000,true)==Handshake::Pending); // suspend is not a protocol timeout
+    assert(paused.Observe(2,100000,true)==Handshake::Pending); // other protocol is not acceptance
+    assert(paused.Observe(BelleRenderReadiness::Protocol,100000,true)==Handshake::Ready);
     return 0;
 }

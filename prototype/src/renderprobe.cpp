@@ -14,7 +14,7 @@ static void Trace(const TDesC& event){BoundedRenderTrace(_L("C:\\data\\BelleWall
 #include "candidatesession.h"
 class CBelleRenderProbe:public CXnExtRenderingPluginAdapter{
 public:
-    static CBelleRenderProbe* NewL(){CBelleRenderProbe* self=new(ELeave)CBelleRenderProbe;CleanupStack::PushL(self);self->iClock.InitL();TBuf<100> line;line.Format(_L("PLUGIN longrun impl=e7b31137 construct pid=%u sid=%08x"),TUint(RProcess().Id().Id()),RProcess().SecureId().iId);Trace(line);CleanupStack::Pop(self);return self;}
+    static CBelleRenderProbe* NewL(){CBelleRenderProbe* self=new(ELeave)CBelleRenderProbe;CleanupStack::PushL(self);self->iClock.InitL();TBuf<100> line;line.Format(_L("PLUGIN longrun impl=e7b31137 redraw=3.1 pid=%u sid=%08x"),TUint(RProcess().Id().Id()),RProcess().SecureId().iId);Trace(line);CleanupStack::Pop(self);return self;}
     ~CBelleRenderProbe(){delete iTimer;delete iLight;TBuf<160> line;line.Format(_L("LOCAL ticks=%Ld draws=%Ld elapsed_ms=%Ld"),iTicks,iDraws,iElapsedUs/1000);Trace(line);line.Format(_L("DIRTY requests=%Ld partial=%Ld total_area=%Ld"),iRequests,iPartial,iArea);Trace(line);Trace(_L("PLUGIN destroyed"));}
     void SizeChanged(){TBuf<160> line;line.Format(_L("PLUGIN size=%dx%d window=%d"),Size().iWidth,Size().iHeight,Window().WsHandle());Trace(line);
         const CCoeControl* control=this;

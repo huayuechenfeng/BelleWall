@@ -18,6 +18,7 @@ public:
     TBool BeginPaintL(){if(publisher&&!publisher->BeginWrite())return EFalse;bitmap->BeginDataAccess();if(bitmap->IsCompressedInRAM()){bitmap->EndDataAccess(ETrue);if(publisher)publisher->EndWrite();Log(_L("FBS compressed target rejected before drawing"));User::Leave(KErrNotSupported);}return ETrue;}
     void EndPaint(){bitmap->EndDataAccess(EFalse);if(publisher)publisher->EndWrite();}
     TSize Size()const{return target;}
+    TUint ConsumerProtocolL(){return publisher?publisher->ConsumerProtocolL():0;}
     TBool NeedsRebuildL(){return publisher&&publisher->NeedsRebuildL();}
     TSize ObservedL(){return publisher?publisher->ObservedL():target;}
     void Configure(TInt mode,TRgb color){fit=mode;background=color;previousValid=EFalse;}

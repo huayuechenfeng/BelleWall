@@ -22,6 +22,7 @@
 #include "candidatesession.h"
 #include "sywpstorage.h"
 #include "displaypolicy.h"
+#include "renderreadiness.h"
 static quint32 SywpU32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return quint32(p[0])|(quint32(p[1])<<8)|(quint32(p[2])<<16)|(quint32(p[3])<<24);}
 static quint32 SywpBe32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return (quint32(p[0])<<24)|(quint32(p[1])<<16)|(quint32(p[2])<<8)|quint32(p[3]);}
 static void SywpPut(QByteArray& b,int at,quint32 n){for(int i=0;i<4;i++)b[at+i]=char(n>>(8*i));}
@@ -170,6 +171,7 @@ static void SywpConfirmDelete(const QString& name){
     QMessageBox::information(0,"BelleWall",error?BwText("删除未完成（错误码 %1）。运行或恢复期间不能删除。若已取消选择或部分删除，请重新查看列表；原始 SYWP 文件未删除。").arg(error):BwText("壁纸已从手机库删除，原始 SYWP 文件保留。"));
 }
 static QString SywpError(TInt error){
+    if(error==BelleRenderReadiness::Unavailable)return BwText("桌面刷新通道未连接（错误码 -7110）。升级后请完整重启手机；若仍失败，请重新安装同版本组合包并导出诊断。");
     if(error==KErrCancel)return BwText("已取消导入，原来的壁纸选择没有改变。");
     if(error==KErrInUse||error==KErrAlreadyExists)return BwText("请先停止壁纸并完成桌面恢复，再导入或选择内容。");
     if(error==KErrDiskFull)return BwText("选定盘空间不足。请换一个存储盘或释放空间后重试，原来的壁纸选择没有改变。");
@@ -258,7 +260,7 @@ private:
         if(active){switch(state){case EPreparing:case EBinding:text=BwText("正在准备壁纸，请回到桌面并保持解锁。");break;case ERunning:text=BwText("壁纸正在运行。");break;case EPaused:text=BwText("壁纸已暂停；返回亮屏桌面并使用壁纸允许的方向后继续。");break;default:text=BwText("正在停止并恢复；请回到桌面并保持解锁。");break;}}
         else if(busy)text=BwText("正在处理壁纸，请稍候；恢复时请回到桌面。");
         else if(pending)text=BwText("桌面恢复尚未完成。请点「恢复桌面」，恢复前无法播放或导入。");
-        else {text=BwText("已停止 · 桌面可正常使用");QFile outcome("C:/data/BelleWall/candidate-last-result.txt");if(outcome.open(QIODevice::ReadOnly)&&outcome.size()<=24){bool ok=false;int error=outcome.readAll().toInt(&ok);if(ok&&error<0)text=BwText("上次操作未完成（错误码 %1）。当前没有待恢复记录，可重试；若持续失败，请保存日志反馈。").arg(error);}}
+        else {text=BwText("已停止 · 桌面可正常使用");QFile outcome("C:/data/BelleWall/candidate-last-result.txt");if(outcome.open(QIODevice::ReadOnly)&&outcome.size()<=24){bool ok=false;int error=outcome.readAll().toInt(&ok);if(ok&&error==BelleRenderReadiness::Unavailable)text=SywpError(error);else if(ok&&error<0)text=BwText("上次操作未完成（错误码 %1）。当前没有待恢复记录，可重试；若持续失败，请保存日志反馈。").arg(error);}}
         if(!active&&!busy&&!pending&&QFile::exists("C:/data/BelleWall/preparation-pending.bin"))text=BwText("上次组件操作未完成。请点「检查并准备组件」重试，或执行「卸载准备」；请勿手动删除记录。");
         if(active)text+=BwText("\n动态桌面运行期间，壁纸管理不可用。要更换壁纸，请先停止并恢复桌面。");
         status->setText(text);QString chosen=SywpChosen();if(chosen!=lastChosen){lastChosen=chosen;lastLabel=chosen.isEmpty()?QString():SywpLabel(chosen);}

@@ -13,6 +13,7 @@ Symbian Belle 动态壁纸：在原生桌面图标与小组件下面播放视频
 - [兼容性与已知限制](doc/COMPATIBILITY.md)
 - [1.0 发布说明](doc/RELEASE-1.0.md)
 - [1.0.2 发布说明](doc/RELEASE-1.0.2.md)
+- [1.1.1 刷新通道修复候选](doc/CANDIDATE-1.1.1.md)
 - [1.1.0 测试候选与验收清单](doc/CANDIDATE-1.1.0.md)
 - [下一阶段计划](doc/NEXT-PHASE-PLAN.md)
 

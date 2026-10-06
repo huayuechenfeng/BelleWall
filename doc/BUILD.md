@@ -41,3 +41,5 @@ node prototype/tools/bundle-release-tools.cjs build/release-1.0.0/tools-r3
 沿用 package-video-test.cjs、bundle-release-tools.cjs 和 package-release-tools.cjs，输出到 `dist/test/1.1.0/`。交付目录只放两个测试 ZIP、README 和 CHANNEL.json，构建日志与独立组件保留在 build/checkpoints；生成 CHANNEL.json 后运行 verify-deliveries.cjs。ZIP 根目录直接放安装器或工具入口。正式 1.0.2 目录不变，本轮未发布正式 Release。
 
 手机字符串源为 prototype/translations/phone-en.json，build.cjs 自动运行 generate-ui-strings.cjs 生成 C++ 表；translations.test.cjs 检查用户可见中文和占位符覆盖。PC 文案在 sywp-webui.html 的 zh/en 表中。
+
+1.1.1 修复候选使用 `BELLEWALL_CANDIDATE_VERSION=1.1.1` 和快照 `build/checkpoints/BelleWall-1.1.1-redraw-handshake-v1`，同样运行 build-video-candidate.cjs。全量测试设置 `BELLEWALL_PRODUCT_VERSION=1.1.1`。本轮只交付新的 injector-test.zip，PC 制作工具继续使用 1.1.0 版。新握手头 renderreadiness.h 随 renderer 源码快照保存。安装后重启手机并核对 protocol=3.1 日志，参见 [修复说明](CANDIDATE-1.1.1.md)。

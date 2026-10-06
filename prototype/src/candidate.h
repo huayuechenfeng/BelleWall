@@ -5,10 +5,13 @@
 #include "videotiming.h"
 static void CandidateHelperL(const TDesC& action,const TCandidateRecord& record){
     TBuf<16> token;CandidateToken(record,token);TBuf<100> args(action);args.Append(' ');args.Append(token);
-    RProcess p;User::LeaveIfError(p.Create(_L("C:\\sys\\bin\\bellerenderhost.exe"),args));CleanupClosePushL(p);TRequestStatus done;p.Logon(done);p.Resume();
-    // Helper owns no wallpaper pixels; no desktop UI thread waits here.
-    for(TInt n=0;done==KRequestPending&&n<200;n++)User::After(100000);
-    if(done==KRequestPending){p.LogonCancel(done);User::WaitForRequest(done);User::Leave(KErrTimedOut);}User::LeaveIfError(p.ExitReason());CleanupStack::PopAndDestroy(&p);
+    RProcess p;User::LeaveIfError(p.Create(_L("C:\\sys\\bin\\bellerenderhost.exe"),args));CleanupClosePushL(p);
+    RTimer timer;User::LeaveIfError(timer.CreateLocal());CleanupClosePushL(timer);TRequestStatus done,timeout;p.Logon(done);timer.After(timeout,20000000);p.Resume();
+    // Consume the helper's completion before entering the multimedia active
+    // scheduler. Polling a completed bare Logon leaves a stray signal (panic 46).
+    User::WaitForRequest(done,timeout);
+    if(done==KRequestPending){p.LogonCancel(done);User::WaitForRequest(done);User::Leave(KErrTimedOut);}
+    timer.Cancel();User::WaitForRequest(timeout);CleanupStack::PopAndDestroy(&timer);User::LeaveIfError(p.ExitReason());CleanupStack::PopAndDestroy(&p);
 }
 static void CandidateStateL(TUint state){candidate->record.state=state;CandidateWriteL(fs,candidate->record);Status(_L("CANDIDATE state"),state);}
 static void CandidateStopWorkerL(const TCandidateRecord& r){
@@ -59,6 +62,15 @@ static void CandidatePlayL(TInt kind){
     CWsScreenDevice* screen=new(ELeave)CWsScreenDevice(ws);CleanupStack::PushL(screen);User::LeaveIfError(screen->Construct());const TSize initialSize=screen->SizeInPixels();CleanupStack::PopAndDestroy(screen);if(!BelleDisplay::Valid(initialSize.iWidth,initialSize.iHeight))User::Leave(KErrNotSupported);TContentDisplay policy=ReadContentDisplayL(fs);
     TFileName path;FrameL(830,path,0,initialSize.iWidth,initialSize.iHeight);BindPagesL(path);User::LeaveIfError(AknsWallpaperUtils::SetIdleWallpaper(path,0));User::After(1000000);
     User::LeaveIfError(RFbsSession::Connect());LiveCacheImage* image=LiveCacheImage::NewLC(path,initialSize);image->EnableDirtyL();image->Configure(policy.fit,TRgb((policy.background>>16)&255,(policy.background>>8)&255,policy.background&255));
+    // The desktop may retain a previous DLL after an in-place upgrade. A
+    // session heartbeat is insufficient: old plugins use another redraw chunk.
+    CandidateStateL(EPaused);BelleRenderReadiness::Handshake handshake;SessionClock handshakeClock;handshakeClock.InitL();TInt64 handshakeWall=0;
+    for(;;){if(candidate->stop)User::Leave(KErrCancel);candidate->heartbeat++;TInt64 delta=handshakeClock.StepUs();handshakeWall+=delta;
+        const BelleRenderReadiness::Handshake::Result state=handshake.Observe(image->ConsumerProtocolL(),delta,DesktopReadyL(ws,*light));
+        if(state==BelleRenderReadiness::Handshake::Ready){Log(_L("REDRAW current transport handshake accepted protocol=3.1"));break;}
+        if(state==BelleRenderReadiness::Handshake::Failed){Log(_L("REDRAW handshake absent despite foreground desktop; restart after upgrade or reinstall matching components"));User::Leave(BelleRenderReadiness::Unavailable);}
+        if(handshakeWall>60000000)User::Leave(KErrTimedOut);User::After(100000);
+    }
     ContentFrames* video=0;CWebStreamReader* web=0;CFbsBitmap* bitmap=0;
     if(kind==1){video=ContentFrames::NewLC();}else if(kind==2){web=CWebStreamReader::NewLC(initialSize);bitmap=new(ELeave)CFbsBitmap;CleanupStack::PushL(bitmap);User::LeaveIfError(bitmap->Create(image->Size(),EColor64K));}
     RFile metrics;User::LeaveIfError(metrics.Replace(fs,_L("C:\\data\\BelleWall\\candidate-metrics.csv"),EFileWrite|EFileShareAny));CleanupClosePushL(metrics);User::LeaveIfError(metrics.Write(_L8("wall_us,active_us,source,work_us,consumer,read_us,blit_us\n")));

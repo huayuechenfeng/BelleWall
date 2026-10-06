@@ -88,5 +88,6 @@
   "语言 / Language": "Language / 语言",
   "跟随系统": "System language",
   "选择界面语言": "Choose the interface language",
-  "中文": "中文"
+  "中文": "中文",
+  "桌面刷新通道未连接（错误码 -7110）。升级后请完整重启手机；若仍失败，请重新安装同版本组合包并导出诊断。": "Desktop redraw is not connected (error -7110). Restart the phone after upgrading. If this persists, reinstall the matching combined package and export diagnostics."
 }
