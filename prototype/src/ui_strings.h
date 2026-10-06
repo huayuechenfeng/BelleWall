@@ -5,7 +5,7 @@ static const char* const KBwTranslations[][2]={
     {"%1 盘可用 %2 MiB","%1: %2 MiB free"},
     {"10 分钟","10 minutes"},
     {"60 秒检查","60-second check"},
-    {"BelleWall 1.1\n播放或恢复时请保持解锁。","BelleWall 1.1\nKeep the phone unlocked during playback and recovery."},
+    {"BelleWall 1.3\n播放或恢复时请保持解锁。","BelleWall 1.3\nKeep the phone unlocked during playback and recovery."},
     {"Qt：%1\nC 盘可用：%2\n","Qt: %1\nC drive free: %2\n"},
     {"\n%1 盘 · %2 MiB%3","\nDrive %1 · %2 MiB%3"},
     {"\nMP4 压缩版的应用内预览尚未接入。可返回壁纸管理启动测试；若系统解码器不支持，请停止并保留诊断。","\nMP4 preview is not available here. Start a desktop test from the library. If decoding fails, stop and export diagnostics."},

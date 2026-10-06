@@ -6,7 +6,7 @@ RESOURCE LOCALISABLE_APP_INFO r_localisable_app_info
     caption_and_icon = CAPTION_AND_ICON_INFO
         {
         caption = "BelleWall";
-        number_of_icons = 0;
-        icon_file = "";
+        number_of_icons = 1;
+        icon_file = "\\resource\\apps\\bellewall.mif";
         };
     }

@@ -245,11 +245,11 @@ static QString SywpManageLibrary(){
 class WallpaperSettingsDialog:public QDialog {
 public:
     WallpaperSettingsDialog():QDialog(),status(new QLabel(this)),selection(new QLabel(this)),loggedState(-1){
-        setWindowTitle("BelleWall 1.1");QVBoxLayout* outer=new QVBoxLayout(this);QScrollArea* scroll=new QScrollArea(this);scroll->setWidgetResizable(true);QWidget* body=new QWidget(scroll);scroll->setWidget(body);outer->addWidget(scroll);QVBoxLayout* layout=new QVBoxLayout(body);QLabel* heading=new QLabel(BwText("BelleWall"),this);QFont font=heading->font();font.setPointSize(20);heading->setFont(font);layout->addWidget(heading);
+        setWindowTitle("BelleWall 1.3");QVBoxLayout* outer=new QVBoxLayout(this);QScrollArea* scroll=new QScrollArea(this);scroll->setWidgetResizable(true);QWidget* body=new QWidget(scroll);scroll->setWidget(body);outer->addWidget(scroll);QVBoxLayout* layout=new QVBoxLayout(body);QLabel* heading=new QLabel(BwText("BelleWall"),this);QFont font=heading->font();font.setPointSize(20);heading->setFont(font);layout->addWidget(heading);
         status->setWordWrap(true);selection->setWordWrap(true);selection->setTextFormat(Qt::PlainText);layout->addWidget(status);layout->addWidget(selection);
         QStringList actions=QStringList()<<BwText("壁纸管理")<<BwText("恢复桌面")<<BwText("运行诊断")<<BwText("检查并准备组件")<<BwText("卸载准备")<<BwText("返回桌面")<<BwText("语言 / Language");const int ids[]={2,4,7,8,9,6,10};QSignalMapper* mapper=new QSignalMapper(this);
         for(int i=0;i<actions.size();i++){buttons[i]=new QPushButton(actions[i],this);buttons[i]->setMinimumHeight(42);layout->addWidget(buttons[i]);QObject::connect(buttons[i],SIGNAL(clicked()),mapper,SLOT(map()));mapper->setMapping(buttons[i],ids[i]);}
-        QObject::connect(mapper,SIGNAL(mapped(int)),this,SLOT(done(int)));QLabel* note=new QLabel(BwText("BelleWall 1.1\n播放或恢复时请保持解锁。"),this);note->setWordWrap(true);layout->addWidget(note);refresh();startTimer(500);
+        QObject::connect(mapper,SIGNAL(mapped(int)),this,SLOT(done(int)));QLabel* note=new QLabel(BwText("BelleWall 1.3\n播放或恢复时请保持解锁。"),this);note->setWordWrap(true);layout->addWidget(note);refresh();startTimer(500);
     }
 protected:
     void timerEvent(QTimerEvent*){refresh();}

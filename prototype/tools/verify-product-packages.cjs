@@ -10,8 +10,9 @@ const profiles=[
  {sis:'bellepaper-selfsigned.sisx',uid:0xe7b31103,dependency:0xe7b31106,files:['bellepaper.exe'],uids:{0:0xe7b31103}},
  {sis:'bellewall-selfsigned.sisx',uid:0xe7b31101,dependency:0xe7b31103,files:['bellewall.exe','bellewall.rsc','bellewall_reg.rsc','config.ini','animation.html','sample.mp4','THIRD-PARTY.txt','belleweb.exe','belleweb.rsc','belleweb_reg.rsc'],uids:{0:0xe7b31101,7:0xe7b31130}}
 ];
+if(Number(version.split('.')[0])>1||Number(version.split('.')[1])>=3)profiles[2].files.push('bellewall.mif');
 function destination(name){
- const dir=/\.(exe|dll)$/.test(name)?'sys\\bin':['bellerendercandidate.rsc','bellerenderlongrun.rsc'].includes(name)?'resource\\plugins':/_reg\.rsc$/.test(name)?'private\\10003a3f\\import\\apps':/\.rsc$/.test(name)?'resource\\apps':'data\\BelleWall';
+ const dir=/\.(exe|dll)$/.test(name)?'sys\\bin':['bellerendercandidate.rsc','bellerenderlongrun.rsc'].includes(name)?'resource\\plugins':/_reg\.rsc$/.test(name)?'private\\10003a3f\\import\\apps':/\.(rsc|mif)$/.test(name)?'resource\\apps':'data\\BelleWall';
  return 'C:\\'+dir+'\\'+name;
 }
 function manifestMetadata(bytes,profile){

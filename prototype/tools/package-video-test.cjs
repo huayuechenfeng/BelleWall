@@ -40,6 +40,9 @@ run(['-a','-cf',output,'-C',staging,...fs.readdirSync(staging).sort()]);
 const listed=new Set(run(['-tf',output]).trim().split(/\r?\n/).map(x=>x.replaceAll('\\','/')));
 for(const relative of [...items.map(([,name])=>name),'README.md','SHA256SUMS.txt'])if(!listed.has(relative))throw Error('ZIP entry missing: '+relative);
 if([...listed].some(name=>name.startsWith('./')||name.startsWith(`BelleWall-${version}-test/`)))throw Error('Unexpected ZIP wrapper directory');
+const extracted=path.join(staging,'extracted-verification');fs.mkdirSync(extracted);
+run(['-xf',output,'-C',extracted]);
+for(const relative of [...items.map(([,name])=>name),'README.md','SHA256SUMS.txt'])if(sha(path.join(extracted,relative))!==sha(path.join(bundle,relative)))throw Error('Extracted phone ZIP hash mismatch: '+relative);
 console.log(JSON.stringify({output,bytes:fs.statSync(output).size,sha256:sha(output),fileCount:items.length+2},null,2));
 }finally{
  const resolved=fs.realpathSync(staging);

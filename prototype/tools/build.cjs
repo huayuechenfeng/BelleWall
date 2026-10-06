@@ -6,7 +6,7 @@ const root=path.resolve(__dirname,'../..'), sdk=process.env.BELLE_SDK||'C:/QtSDK
 const gcc=process.env.BELLE_GCCE||'C:/QtSDK/Symbian/tools/gcce4';
 const out=path.join(root,'build/arm'),dist=path.join(root,'dist');fs.mkdirSync(out,{recursive:true});fs.mkdirSync(dist,{recursive:true});
 const log=[];
-function run(exe,args){log.push(JSON.stringify({exe,args}));const r=cp.spawnSync(exe,args,{cwd:out,encoding:'utf8',maxBuffer:16*1024*1024});log.push(r.stdout||'',r.stderr||'');fs.writeFileSync(path.join(out,'build.log'),log.join('\n'));if(r.error)throw r.error;if(r.status!==0){console.error(r.stdout,r.stderr);throw Error('Build failed: '+path.basename(exe));}if(r.stdout)console.log(r.stdout);}
+function run(exe,args,cwd=out){log.push(JSON.stringify({exe,args}));const r=cp.spawnSync(exe,args,{cwd,env:{...process.env,PATH:sdk+'/epoc32/tools;'+process.env.PATH},encoding:'utf8',maxBuffer:16*1024*1024});log.push(r.stdout||'',r.stderr||'');fs.writeFileSync(path.join(out,'build.log'),log.join('\n'));if(r.error)throw r.error;if(r.status!==0){console.error(r.stdout,r.stderr);throw Error('Build failed: '+path.basename(exe));}if(r.stdout)console.log(r.stdout);}
 const inc=sdk+'/epoc32/include',lib=sdk+'/epoc32/release/armv5/lib';
 const flags=['-c','-g','-O2','-marm','-march=armv6','-mfloat-abi=softfp','-mfpu=vfp','-msoft-float','-fexceptions','-fno-unit-at-a-time','-fno-strict-aliasing','-fvisibility=hidden','-fvisibility-inlines-hidden','-Wall','-Wextra','-Wno-unused-parameter','-D__SUPPORT_CPP_EXCEPTIONS__','-D__LEAVE_EQUALS_THROW__','-DSYMBIAN_ENABLE_SPLIT_HEADERS','-D__SYMBIAN_STDCPP_SUPPORT__','-D__SYMBIAN32__','-D__EPOC32__','-D__GCCE__','-D__MARM__','-D__EABI__','-D__MARM_ARMV5__','-D__EXE__','-D_UNICODE','-DUNICODE','-DNDEBUG','-DQT_NO_DEBUG','-DQT_SHARED','-DQT_GUI_LIB','-DQT_CORE_LIB','-DQT_WEBKIT_LIB','-DQT_NETWORK_LIB','-include',inc+'/gcce/gcce.h'];
 for(const p of [inc,inc+'/variant',inc+'/platform',inc+'/platform/graphics',inc+'/mw',inc+'/platform/mw',inc+'/platform/mw/alf',inc+'/stdapis',inc+'/stdapis/stlportv5',sdk+'/include',sdk+'/include/QtCore',sdk+'/include/QtGui',sdk+'/include/QtWebKit',sdk+'/include/QtNetwork',sdk+'/include/QtScript'])flags.push('-I'+p);
@@ -23,9 +23,19 @@ for(const name of ['bellewall','bellewall_reg','belleweb_reg']){
  run(sdk+'/epoc32/tools/rcomp.exe',['-u','-s'+name+'.rpp','-o'+path.join(dist,name+'.rsc'),'-h'+name+'.rsg']);
 }
 fs.copyFileSync(path.join(dist,'bellewall.rsc'),path.join(dist,'belleweb.rsc'));
+const iconWork=fs.mkdtempSync(path.join(require('os').tmpdir(),'bellewall-icon-'));
+try{
+ fs.copyFileSync(path.join(root,'assets/branding/bellewall-icon.svg'),path.join(iconWork,'icon.svg'));
+ run(sdk+'/epoc32/tools/mifconv.exe',['bellewall.mif','-T'+iconWork,'-c32,8','icon.svg'],iconWork);
+ fs.copyFileSync(path.join(iconWork,'bellewall.mif'),path.join(dist,'bellewall.mif'));
+}finally{
+ const resolved=fs.realpathSync(iconWork),parent=fs.realpathSync(require('os').tmpdir());
+ if(path.dirname(resolved)!==parent||!path.basename(resolved).startsWith('bellewall-icon-'))throw Error('Unsafe icon temporary directory');
+ fs.rmSync(resolved,{recursive:true,force:true});
+}
 const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
-const sources=fs.readdirSync(path.join(root,'prototype/src')).map(n=>'prototype/src/'+n).concat('prototype/tools/build.cjs',fs.readdirSync(decoder).map(n=>'prototype/vendor/h264bsd/src/'+n));
-fs.writeFileSync(path.join(out,'success.json'),JSON.stringify({sdk,gcc,sources:Object.fromEntries(sources.map(n=>[n,sha(path.join(root,n))])),exeSha256:sha(path.join(dist,'bellewall.exe')),workerSha256:sha(path.join(dist,'belleweb.exe')),resources:Object.fromEntries(['bellewall.rsc','bellewall_reg.rsc','belleweb.rsc','belleweb_reg.rsc'].map(n=>[n,sha(path.join(dist,n))])),level:'Compiled and linked only; no emulator or device execution'},null,2));
+const sources=fs.readdirSync(path.join(root,'prototype/src')).map(n=>'prototype/src/'+n).concat('prototype/tools/build.cjs','assets/branding/bellewall-icon.svg',fs.readdirSync(decoder).map(n=>'prototype/vendor/h264bsd/src/'+n));
+fs.writeFileSync(path.join(out,'success.json'),JSON.stringify({sdk,gcc,sources:Object.fromEntries(sources.map(n=>[n,sha(path.join(root,n))])),exeSha256:sha(path.join(dist,'bellewall.exe')),workerSha256:sha(path.join(dist,'belleweb.exe')),resources:Object.fromEntries(['bellewall.rsc','bellewall_reg.rsc','belleweb.rsc','belleweb_reg.rsc','bellewall.mif'].map(n=>[n,sha(path.join(dist,n))])),level:'Compiled and linked only; no emulator or device execution'},null,2));
 console.log('ARM executable: '+dist+'/bellewall.exe');
 
 

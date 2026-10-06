@@ -8,7 +8,8 @@ const version=process.env.BELLEWALL_CANDIDATE_VERSION||(kind==='video'?'1.0.2':'
 if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid candidate version');
 const displayCandidate=Number(version.split('.')[0])>1||Number(version.split('.')[1])>=1;
 const sisVersion=version.replaceAll('.',',');
-const baseName='BelleWall-'+version+'-'+kind+'-candidate';
+const release=process.env.BELLEWALL_CHANNEL==='release';
+const baseName='BelleWall-'+version+(release?'':'-'+kind+'-candidate');
 const out=path.resolve(process.argv[2]||path.join(root,'build/checkpoints',baseName));
 const renderer=path.join(out,'renderer-build');
 if(fs.existsSync(out))throw Error('Candidate output exists; choose a new path');
@@ -36,8 +37,8 @@ node('prototype/tools/verify-product-packages.cjs',['dist',path.join(out,'paired
 const components=[['bellerender-selfsigned.sisx','0xE7B31106'],['bellepaper-selfsigned.sisx','0xE7B31103'],['bellewall-selfsigned.sisx','0xE7B31101']];
 for(const [name] of components)fs.copyFileSync(path.join(dist,name),path.join(out,name));
 const inputs=path.join(out,'package-inputs');fs.mkdirSync(inputs);
-for(const name of ['bellerendercandidate.dll','bellerendercandidate.rsc','bellerenderhost.exe','bellerenderlongrun.dll','bellerenderlongrun.rsc','bellepaper.exe','bellewall.exe','bellewall.rsc','bellewall_reg.rsc','config.ini','animation.html','sample.mp4','THIRD-PARTY.txt','belleweb.exe','belleweb.rsc','belleweb_reg.rsc'])fs.copyFileSync(path.join(dist,name),path.join(inputs,name));
-const spec='&EN\n#{"BelleWall '+version+' '+(kind==='video'?'video':'compatibility')+' candidate"},(0xE7B31109),'+sisVersion+'\n%{"BelleWall"}\n:"BelleWall"\n'+components.map(([name,uid])=>'@"'+path.join(out,name).replaceAll('\\','/')+'",('+uid+')').join('\n')+'\n';
+for(const name of ['bellewall.mif','bellerendercandidate.dll','bellerendercandidate.rsc','bellerenderhost.exe','bellerenderlongrun.dll','bellerenderlongrun.rsc','bellepaper.exe','bellewall.exe','bellewall.rsc','bellewall_reg.rsc','config.ini','animation.html','sample.mp4','THIRD-PARTY.txt','belleweb.exe','belleweb.rsc','belleweb_reg.rsc'])fs.copyFileSync(path.join(dist,name),path.join(inputs,name));
+const spec='&EN\n#{"BelleWall '+version+(release?'':' '+(kind==='video'?'video':'compatibility')+' candidate')+'"},(0xE7B31109),'+sisVersion+'\n%{"BelleWall"}\n:"BelleWall"\n'+components.map(([name,uid])=>'@"'+path.join(out,name).replaceAll('\\','/')+'",('+uid+')').join('\n')+'\n';
 const pkg=path.join(out,'BelleWall-'+version+'.pkg'),unsigned=path.join(out,'BelleWall-'+version+'-unsigned.sis'),installer=path.join(out,baseName+'.sisx');
 fs.writeFileSync(pkg,spec);
 run(sdk+'/epoc32/tools/makesis.exe',[pkg,unsigned],'combined-makesis');
@@ -86,5 +87,5 @@ fs.writeFileSync(path.join(out,'validation.json'),JSON.stringify(report,null,2)+
 const readme=kind==='video'
  ? '# BelleWall '+version+' 视频候选\n\n这是 E7 与 603 实机测试包。先在旧版停止壁纸并完成桌面恢复，然后只安装 `'+path.basename(installer)+'`。组合包内含三个同版本组件；导入的壁纸库不在安装包载荷中。\n\n目录中的 `test-20fps-360x640.sywp` 和 `test-30fps-360x640.sywp` 是各两秒的 RGB565 动态测试图；1.0.3 另有 `test-30fps-360x640-mp4.sywp` 压缩版测试图。壁纸管理导入 SYWP 时，选文件后再选 C、E 或 F 存储盘；列表显示盘符。旧版 C 盘库和选中记录继续可读。原始 SYWP 文件不会被移动或删除。RGB565 视频支持 180×320／360×640，按素材时间最高 30 fps 请求帧；MP4 压缩版使用系统逐帧解码接口，速度需实机测试。请在两台手机上比较两种格式的导入耗时、实际流畅度、暂停恢复、停止后的桌面恢复，以及 E／F 盘读取与删除。C 盘仍保存少量配置、日志和恢复记录。\n\nE7 请保持竖屏并把当前页面改为原生默认黑色背景；603 也需原生默认黑色背景。测试过程先选“60 秒检查”。失败时记下错误码并从应用内导出诊断。30 fps 是调度上限，不是实机已达到的帧率。离线校验与哈希见 `validation.json`。\n'
  : '# BelleWall 1.0.1 兼容性候选\n\n这是离线构建的实机测试包，尚未在 E7 播放验收。安装前在旧版中停止壁纸并确认桌面已恢复；升级时只安装 `BelleWall-1.0.1-compat-candidate.sisx`，它包含三个配套组件。不要单独重复安装目录内的组件 SISX。导入的壁纸库不在本包载荷中。\n\nE7 测试：保持竖屏；当前只读检查显示 E7 有一页，背景为 `Clouds.jpg`，请先把这一页改为原生默认黑色背景。候选包接受 1 至 8 页。打开 BelleWall，选择已导入的壁纸并启动。观察能否进入播放、桌面是否实际更新；停止后检查原生背景是否恢复。若报错，请记下错误码，在应用内运行诊断并保存日志。\n\n603 FP2 与 E7 使用各自已核验的精确布局；未知固件可通过带通配位的结构匹配推导背景偏移和虚表地址。Nokia 603 的旧固件 111.020.0310 作为第三份 ROM 样本离线唯一命中，但没有实机验收。结构不匹配或多重命中会拒绝，不能据此声称所有 Belle 固件已兼容。Qt 运行库最低要求为编译版本 4.7.4。证书与设备权限仍须满足系统安装条件。验证明细及哈希见 `validation.json`，静态证据见 `rom-profile-verification.log` 和 `generic-layout-verification.log`。\n';
-fs.writeFileSync(path.join(out,'README.md'),displayCandidate?fs.readFileSync(path.join(root,'doc/CANDIDATE-'+version+'.md'),'utf8'):readme);
+fs.writeFileSync(path.join(out,'README.md'),displayCandidate?fs.readFileSync(path.join(root,'doc/'+(release?'RELEASE-':'CANDIDATE-')+version+'.md'),'utf8'):readme);
 console.log('Candidate: '+installer);

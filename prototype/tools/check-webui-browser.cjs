@@ -14,6 +14,8 @@ async function run(){
   const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
   const wait=async expression=>{for(let i=0;i<160;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,100));}throw Error('UI condition timed out: '+expression);};
   await call('Page.enable');await call('Network.enable');await call('Emulation.setDeviceMetricsOverride',{width:1100,height:900,deviceScaleFactor:1,mobile:false});await call('Page.navigate',{url:'http://127.0.0.1:'+server.address().port});await wait('document.readyState==="complete"&&!!document.querySelector("#make")');
+  await wait('document.querySelector("header img").complete&&document.querySelector("header img").naturalWidth>0');
+  const iconResponse=await fetch('http://127.0.0.1:'+server.address().port+'/bellewall-icon.svg');assert.equal(iconResponse.status,200);assert.equal(await iconResponse.text(),fs.readFileSync(path.join(root,'assets/branding/bellewall-icon.svg'),'utf8'));
   const choose=async file=>{const {root:doc}=await call('DOM.getDocument');const {nodeId}=await call('DOM.querySelector',{nodeId:doc.nodeId,selector:'#file'});await call('DOM.setFileInputFiles',{nodeId,files:[file]});};
   const mpkg=path.join(root,'build/product-assets/preview.mpkg');if(fs.existsSync(mpkg)){await choose(mpkg);await wait('document.querySelector("#video").readyState>=1&&!document.querySelector("#make").disabled');assert.equal(await evaluate('document.querySelector("#status").textContent'),'');}
   await evaluate('document.querySelector("#fit").value="contain";document.querySelector("#fit").dispatchEvent(new Event("input"))');assert.equal(await evaluate('document.querySelector("#video").style.objectFit'),'contain');
@@ -32,7 +34,7 @@ async function run(){
   await call('Page.reload');await wait('document.readyState==="complete"&&!!document.querySelector("#make")');assert.equal(await evaluate('document.querySelector("#language").value'),'en');
   await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});assert.equal(await evaluate('document.documentElement.scrollWidth<=window.innerWidth'),true);
   fs.writeFileSync(path.join(out,'mobile.png'),Buffer.from((await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'));
-  fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({mpkgPreview:fs.existsSync(mpkg),containPreview:true,webDownload:manifest,mp4ExportAvailable:false,rawDownload:raw,languagePreservesOptions:true,languagePersists:true,mobileNoHorizontalOverflow:true},null,2));console.log('Browser QA passed: '+out);
+  fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({brandIconLoaded:true,mpkgPreview:fs.existsSync(mpkg),containPreview:true,webDownload:manifest,mp4ExportAvailable:false,rawDownload:raw,languagePreservesOptions:true,languagePersists:true,mobileNoHorizontalOverflow:true},null,2));console.log('Browser QA passed: '+out);
  }finally{if(socket)socket.close();chrome.kill();await new Promise(r=>chrome.exitCode!==null?r():chrome.once('exit',r));await new Promise(r=>server.close(r));}
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});

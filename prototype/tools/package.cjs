@@ -30,6 +30,7 @@ const pkg=`; No ROM or theme files are installed or changed.
 "belleweb.exe"-"C:\\sys\\bin\\belleweb.exe"
 "belleweb.rsc"-"C:\\resource\\apps\\belleweb.rsc"
 "belleweb_reg.rsc"-"C:\\private\\10003a3f\\import\\apps\\belleweb_reg.rsc"
+"bellewall.mif"-"C:\\resource\\apps\\bellewall.mif"
 `;
 fs.writeFileSync(path.join(dist,'bellewall.pkg'),pkg);
 run(sdk+'/epoc32/tools/makesis.exe',['bellewall.pkg','bellewall-unsigned.sis']);
@@ -39,6 +40,6 @@ if(!fs.existsSync(cert)||!fs.existsSync(key))run(openssl,['req','-new','-newkey'
 run(sdk+'/epoc32/tools/signsis.exe',['-s','bellewall-unsigned.sis','bellewall-selfsigned.sisx',cert,key]);
 const verification=run(sdk+'/epoc32/tools/signsis.exe',['-o','bellewall-selfsigned.sisx']);
 fs.writeFileSync(path.join(dist,'signature-info.txt'),verification);
-const files=['bellewall.exe','bellewall.rsc','bellewall_reg.rsc','belleweb.exe','belleweb.rsc','belleweb_reg.rsc','bellewall-unsigned.sis','bellewall-selfsigned.sisx','sample.mp4','animation.html','config.ini','THIRD-PARTY.txt','bellepaper.exe','bellepaper-selfsigned.sisx'];
+const files=['bellewall.mif','bellewall.exe','bellewall.rsc','bellewall_reg.rsc','belleweb.exe','belleweb.rsc','belleweb_reg.rsc','bellewall-unsigned.sis','bellewall-selfsigned.sisx','sample.mp4','animation.html','config.ini','THIRD-PARTY.txt','bellepaper.exe','bellepaper-selfsigned.sisx'];
 fs.writeFileSync(path.join(dist,'SHA256SUMS.txt'),files.map(n=>crypto.createHash('sha256').update(fs.readFileSync(path.join(dist,n))).digest('hex')+'  '+n).join('\n')+'\n');
 console.log('Packaged and signature inspected: '+path.join(dist,'bellewall-selfsigned.sisx'));

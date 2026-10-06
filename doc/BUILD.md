@@ -1,4 +1,11 @@
-# 构建 1.0
+# 构建
+
+## 当前正式版 1.3.0
+
+运行 `node prototype/tools/build-current-release.cjs`。Windows 上需配置 SDK／GCCE，并设置 `FFMPEG_BIN`、`BELLEWALL_TEST_FFMPEG` 和 `BELLEWALL_PORTABLE_FFMPEG`（路径同下方候选构建）。本入口统一版本 1.3.0，编译矢量图标 MIF、构建三个组件与正式组合安装包，运行离线测试及浏览器检查，封装 PC 与手机附件，校验发布清单。输出为 `dist/release/1.3.0/`，构建快照为 `build/checkpoints/BelleWall-1.3.0-release-v1/`；已有输出不会覆盖。发布仍是独立步骤，构建本身不会向 GitHub 上传或操作手机。
+
+## 历史构建入口
+
 
 从仓库根目录执行 `node prototype/tools/build-release.cjs`。这是历史 1.0.0 构建入口，默认输出 `build/release-checkpoints/BelleWall-1.0.0`；目录已存在时拒绝覆盖，传入另一个新路径可重建。正式交付目录是 `dist/release/<版本>/`，候选交付目录是 `dist/test/<版本>/`，完整构建快照放在 `build/checkpoints/`。
 

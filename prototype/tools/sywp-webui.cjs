@@ -7,6 +7,7 @@ function start(port=8765,base=path.resolve(__dirname,'../../build/sywp-webui')){
  const server=http.createServer(async(req,res)=>{
   const reply=(code,text)=>{if(res.headersSent||res.destroyed)return;res.writeHead(code,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});res.end(text);};let url;try{url=new URL(req.url,'http://127.0.0.1');}catch(e){return reply(400,'Invalid URL');}
   if(!/^127\.0\.0\.1:\d+$/.test(req.headers.host||''))return reply(403,'Invalid host');
+  if(req.method==='GET'&&url.pathname==='/bellewall-icon.svg'){res.writeHead(200,{'Content-Type':'image/svg+xml'});return res.end(fs.readFileSync(path.resolve(__dirname,'../../assets/branding/bellewall-icon.svg')));}
   if(req.method==='GET'&&url.pathname==='/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; connect-src 'self'; frame-ancestors 'none'"});return res.end(fs.readFileSync(path.join(__dirname,'sywp-webui.html'),'utf8').replace('__TOKEN__',token));}
   if(req.method!=='POST'||!['/convert','/preview'].includes(url.pathname)||req.headers['x-bellewall-token']!==token)return reply(403,'Invalid request');
   if(busy)return reply(409,'Another conversion is running');busy=true;

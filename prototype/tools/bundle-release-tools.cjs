@@ -8,7 +8,7 @@ const provenance=JSON.parse(fs.readFileSync(path.join(ffmpeg,'SOURCE.json'),'utf
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 if(hash(path.join(ffmpeg,'bin/ffmpeg.exe'))!==provenance.binarySha256||hash(path.join(ffmpeg,'source/ffmpeg-9.0.1.tar.xz'))!==provenance.sourceSha256)throw Error('Bundled FFmpeg provenance hash mismatch');
 function copy(from,to=from){const dst=path.join(out,to);fs.mkdirSync(path.dirname(dst),{recursive:true});fs.copyFileSync(path.join(root,from),dst);}
-for(const n of ['README.md','LICENSE'])copy(n);
+for(const n of ['README.md','LICENSE','assets/branding/bellewall-icon.svg'])copy(n);
 for(const n of fs.readdirSync(path.join(root,'doc')).filter(n=>n.endsWith('.md')))copy('doc/'+n);
 for(const n of fs.readdirSync(path.join(root,'LICENSES')))copy('LICENSES/'+n);
 for(const n of ['sywp-webui.cjs','sywp-webui.html','sywp.cjs','mp4-profile.cjs','prepare-sywp.cjs','ffmpeg.cjs','mpkg.cjs'])copy('prototype/tools/'+n);
@@ -34,6 +34,14 @@ if(process.env.BELLEWALL_PRODUCT_VERSION==='1.1.2')fs.writeFileSync(path.join(ou
 Extract the full archive and run Start-BelleWall.cmd. Node.js is required; FFmpeg is included. Convert video sources, including MP4, to RGB565 SYWP, or package HTML as a web wallpaper. Compressed MP4 wallpaper export and phone playback are temporarily disabled.
 
 Phone installer / 手机安装器在单独的 injector-test.zip。[测试说明 / Test notes](doc/CANDIDATE-1.1.2.md)。
+`);
+if(process.env.BELLEWALL_PRODUCT_VERSION==='1.3.0')fs.writeFileSync(path.join(out,'README.md'),`# BelleWall 1.3 制作工具 / Wallpaper Workshop
+
+完整解压后运行 Start-BelleWall.cmd，需要 Node.js，FFmpeg 已内置。支持中文／English。MP4 等视频素材转换为 RGB565 SYWP，HTML 制作为网页壁纸。MP4 压缩壁纸暂不支持。手机安装器为单独的 BelleWall-1.3.0.sisx（已包含注入器）。
+
+Extract everything, install Node.js and run Start-BelleWall.cmd. FFmpeg is included. Convert video sources (including MP4) into RGB565 SYWP, or package HTML wallpapers. Compressed MP4 wallpaper export/playback is disabled. Install the separate BelleWall-1.3.0.sisx on your phone.
+
+[发布说明 / Release notes](doc/RELEASE-1.3.0.md)
 `);
 const walk=p=>fs.readdirSync(p,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(p,e.name)):[path.join(p,e.name)]);
 for(const file of walk(ffmpeg))copy(path.relative(root,file),path.join('ffmpeg',path.relative(ffmpeg,file)));
