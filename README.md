@@ -13,6 +13,7 @@ Symbian Belle 动态壁纸：在原生桌面图标与小组件下面播放视频
 - [兼容性与已知限制](doc/COMPATIBILITY.md)
 - [1.0 发布说明](doc/RELEASE-1.0.md)
 - [1.0.2 发布说明](doc/RELEASE-1.0.2.md)
+- [1.1.2 测试候选：暂时关闭 MP4 壁纸](doc/CANDIDATE-1.1.2.md)
 - [1.1.1 刷新通道修复候选](doc/CANDIDATE-1.1.1.md)
 - [1.1.0 测试候选与验收清单](doc/CANDIDATE-1.1.0.md)
 - [下一阶段计划](doc/NEXT-PHASE-PLAN.md)
@@ -26,3 +27,5 @@ Symbian Belle 动态壁纸：在原生桌面图标与小组件下面播放视频
 见 [构建说明](doc/BUILD.md) 和 [文档目录](doc/README.md)。prototype/src 是手机实现，prototype/tools 是制作和构建工具，prototype/tests 是离线测试，prototype/vendor 保留第三方来源，prototype/baseline 固定已验收渲染器。
 
 原创部分采用 [MIT](LICENSE)，第三方保留原版权及许可，详见 [来源清单](doc/SOURCES-AND-LICENSES.md)。SDK、系统库、ROM、私钥、私人素材、历史 build 和设备原始日志不提交。
+
+当前 1.1.2 测试候选支持 RGB565／网页壁纸，暂时关闭手机 MP4 壁纸及对应导出。MP4 视频素材仍可通过 PC 工具转换为 RGB565。E7 用户已确认横屏和双语正常，非标准屏尚无实机验证。

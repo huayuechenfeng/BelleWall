@@ -7,7 +7,7 @@ function prepare(input,output,options={}){
  if(fs.existsSync(output))throw Error('Output exists');
  const fps=Number(options.fps??10),frames=Number(options.frames??300),speed=Number(options.speed??1),x=Number(options.x??0.5),y=Number(options.y??0.5);
  const width=Number(options.width??180),height=Number(options.height??320);
- const encoding=options.encoding||'rgb565';if(!['rgb565','mp4'].includes(encoding))throw Error('Invalid output encoding');
+ const encoding=options.encoding||'rgb565';if(encoding==='mp4')throw Error('MP4 wallpaper export is temporarily disabled; use RGB565');if(!['rgb565','mp4'].includes(encoding))throw Error('Invalid output encoding');
  const gop=Number(options.gop??10);if(!Number.isInteger(gop)||gop<1||gop>60)throw Error('Keyframe interval must be 1–60 frames');
  const fit=options.fit||'cover',orientation=options.orientation||'auto',background=options.background||'#000000';
  if(!['cover','contain','stretch'].includes(fit)||!['auto','portrait','landscape'].includes(orientation)||!/^#[0-9a-fA-F]{6}$/.test(background))throw Error('Invalid display policy');

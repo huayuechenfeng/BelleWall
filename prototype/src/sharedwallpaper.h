@@ -4,6 +4,7 @@
 #include <bitdev.h>
 #include <bitstd.h>
 #include "redrawtransport.h"
+#include "mediapolicy.h"
 class LiveCacheSession:public RAknsSrvSession{
 public:TInt BitmapHandleL(const TDesC& path,const TSize& target=TSize(360,640)){TPckgBuf<TInt> bitmap,mask;bitmap()=0;mask()=0;TPckgC<TSize> size(target);TInt result=SendReceive(21,TIpcArgs(&path,&size,&bitmap,&mask));TBuf<160> detail;detail.Format(_L("CACHE lookup result=%d bitmap=%d mask=%d"),result,bitmap(),mask());Log(detail);User::LeaveIfError(result);if(!bitmap()||mask())User::Leave(KErrNotSupported);return bitmap();}
 };
@@ -81,7 +82,7 @@ class ContentFrames:public CBase{
 public:
     static ContentFrames* NewLC(){ContentFrames* self=new(ELeave)ContentFrames;CleanupStack::PushL(self);
         TFileName path(_L("C:\\data\\BelleWall\\video-frames.bin"));TBool compressed=EFalse;RFile selected;TInt selectedError=selected.Open(fs,_L("C:\\data\\BelleWall\\selected-wallpaper.txt"),EFileRead|EFileShareReadersOnly);if(selectedError==KErrNotFound)selectedError=selected.Open(fs,_L("C:\\data\\BelleWall\\selected-video.txt"),EFileRead|EFileShareReadersOnly);if(!selectedError){TBuf8<80> name;TInt read=selected.Read(name);selected.Close();User::LeaveIfError(read);TInt prefix=name.Length()==70?2:0;if(name.Length()!=68+prefix||(name.Right(4)!=_L8(".bwv")&&name.Right(4)!=_L8(".mp4")))User::Leave(KErrCorrupt);compressed=name.Right(4)==_L8(".mp4");TUint8 drive='C';if(prefix){drive=name[0];if((drive!='C'&&drive!='E'&&drive!='F')||name[1]!=':')User::Leave(KErrCorrupt);}for(TInt i=prefix;i<prefix+64;i++)if(!((name[i]>='0'&&name[i]<='9')||(name[i]>='a'&&name[i]<='f')))User::Leave(KErrCorrupt);path=_L("C:\\data\\BelleWall\\library\\");path[0]=drive;TBuf<80> wide;wide.Copy(name.Mid(prefix));path.Append(wide);}else if(selectedError!=KErrNotFound)User::Leave(selectedError);
-        if(compressed){self->native=NativeVideoFrames::NewL();self->native->OpenL(path);const TSize size=self->native->FrameSize();const TReal32 rate=self->native->FrameRate();const TInt fps=TInt(rate+0.5f);if(!BelleDisplay::Valid(size.iWidth,size.iHeight)||(fps!=10&&fps!=20&&fps!=30)||rate<fps-0.2f||rate>fps+0.2f||self->native->DurationUs()>TInt64(100000)*1000000/fps)User::Leave(KErrNotSupported);self->width=size.iWidth;self->height=size.iHeight;self->fps=fps;self->den=1;self->count=TInt((self->native->DurationUs()*fps+999999)/1000000);if(self->count<1||self->count>100000)User::Leave(KErrCorrupt);TBuf<128> line;line.Format(_L("CONTENT MP4 candidate decoder=%dx%d fps=%d frames=%d"),self->width,self->height,self->fps,self->count);Log(line);return self;}
+        if(compressed)User::Leave(KBelleMp4Disabled);
         User::LeaveIfError(self->file.Open(fs,path,EFileRead|EFileShareReadersOnly));
         TUint fields[6];TPtr8 header(reinterpret_cast<TUint8*>(fields),24,24);User::LeaveIfError(self->file.Read(header));
         if(header.Length()!=24)User::Leave(KErrCorrupt);

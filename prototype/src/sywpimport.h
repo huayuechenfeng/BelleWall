@@ -22,6 +22,7 @@
 #include "candidatesession.h"
 #include "sywpstorage.h"
 #include "displaypolicy.h"
+#include "mediapolicy.h"
 #include "renderreadiness.h"
 static quint32 SywpU32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return quint32(p[0])|(quint32(p[1])<<8)|(quint32(p[2])<<16)|(quint32(p[3])<<24);}
 static quint32 SywpBe32(const QByteArray& b,int at){const unsigned char* p=reinterpret_cast<const unsigned char*>(b.constData()+at);return (quint32(p[0])<<24)|(quint32(p[1])<<16)|(quint32(p[2])<<8)|quint32(p[3]);}
@@ -37,6 +38,7 @@ static void SywpAtomicL(const QString& target,const QByteArray& data){
 static void SywpSelectUnlockedL(const QString& name,bool web){
     const QString id=SywpStorageId(name);
     if(id.isEmpty()||!(web?id.endsWith(".html"):(id.endsWith(".bwv")||id.endsWith(".mp4"))))User::Leave(KErrCorrupt);
+    if(id.endsWith(".mp4"))User::Leave(KBelleMp4Disabled);
     if(!QFile::exists(SywpStoragePath(id)))User::Leave(KErrNotFound);
     QFile metadata(SywpStoragePath(id)+".json");if(!metadata.open(QIODevice::ReadOnly)||metadata.size()>16384)User::Leave(KErrCorrupt);
     QScriptEngine parser;QString escaped="\"",text=QString::fromUtf8(metadata.readAll());for(int i=0;i<text.size();i++)escaped+=QString("\\u%1").arg(text.at(i).unicode(),4,16,QChar('0'));escaped+="\"";
@@ -61,6 +63,7 @@ static void SywpImportL(const QString& input,QChar destination=QChar()){
     QString quoted="\"";for(int i=0;i<decoded.size();i++)quoted+=QString("\\u%1").arg(decoded.at(i).unicode(),4,16,QChar('0'));quoted+="\"";
     QScriptEngine engine;QScriptValue m=engine.evaluate("JSON.parse("+quoted+")");if(engine.hasUncaughtException()||!m.isObject())User::Leave(KErrCorrupt);
     const bool web=m.property("kind").toString()=="web",mp4=!web&&m.property("container").toString()=="mp4";QString kind=m.property("kind").toString();QScriptValue display=m.property("display");
+    if(mp4)User::Leave(KBelleMp4Disabled);
     if(m.property("format").toString()!="sywp"||SywpIntegerL(m,"version",1)!=1||(!web&&kind!="video")||!m.property("loop").isBool()||m.property("loop").toBool()!=true||m.property("pause").toString()!="resume")User::Leave(KErrNotSupported);
     if(!m.property("title").isString()||m.property("title").toString().trimmed().isEmpty()||m.property("title").toString().size()>120||!QRegExp("#[0-9a-fA-F]{6}").exactMatch(display.property("background").toString()))User::Leave(KErrCorrupt);
     QScriptValue features=m.property("requiredFeatures");
@@ -171,11 +174,12 @@ static void SywpConfirmDelete(const QString& name){
     QMessageBox::information(0,"BelleWall",error?BwText("删除未完成（错误码 %1）。运行或恢复期间不能删除。若已取消选择或部分删除，请重新查看列表；原始 SYWP 文件未删除。").arg(error):BwText("壁纸已从手机库删除，原始 SYWP 文件保留。"));
 }
 static QString SywpError(TInt error){
+    if(error==KBelleMp4Disabled)return BwText("MP4 压缩壁纸暂不支持（错误码 -7111）。请用新版制作工具将原视频转换为 RGB565 SYWP；已有 MP4 壁纸仍可删除。");
     if(error==BelleRenderReadiness::Unavailable)return BwText("桌面刷新通道未连接（错误码 -7110）。升级后请完整重启手机；若仍失败，请重新安装同版本组合包并导出诊断。");
     if(error==KErrCancel)return BwText("已取消导入，原来的壁纸选择没有改变。");
     if(error==KErrInUse||error==KErrAlreadyExists)return BwText("请先停止壁纸并完成桌面恢复，再导入或选择内容。");
     if(error==KErrDiskFull)return BwText("选定盘空间不足。请换一个存储盘或释放空间后重试，原来的壁纸选择没有改变。");
-    if(error==KErrNotSupported)return BwText("这个壁纸包暂不适用于当前手机。画布最多 2048 边长、100 万像素；MP4 还依赖系统解码器。");
+    if(error==KErrNotSupported)return BwText("这个壁纸包暂不适用于当前手机。画布最多 2048 边长、100 万像素；当前支持 RGB565 和网页壁纸。");
     if(error==KErrCorrupt)return BwText("壁纸包损坏或格式不正确，请重新生成或复制。原来的壁纸选择没有改变。");
     if(error==KErrNotFound)return BwText("找不到文件，请重新选择或导入。");
     return BwText("操作未完成，请检查文件和可用空间后重试。错误码：")+QString::number(error);
@@ -190,7 +194,7 @@ public:
     void OpenL(const QString& name){
         if(SywpStorageId(name).isEmpty())User::Leave(KErrArgument);
         web=name.endsWith(".html");note->setText(SywpLabel(name)+BwText(web?"\n应用内网页预览（5 fps），不会应用到桌面。":"\n应用内视频预览（最高 30 fps），不会应用到桌面。"));QString path=SywpStoragePath(name);
-        if(name.endsWith(".mp4")){note->setText(SywpLabel(name)+BwText("\nMP4 压缩版的应用内预览尚未接入。可返回壁纸管理启动测试；若系统解码器不支持，请停止并保留诊断。"));return;}
+        if(name.endsWith(".mp4"))User::Leave(KBelleMp4Disabled);
         if(web){width=180;height=320;QFile display(path+".display");if(display.open(QIODevice::ReadOnly)){QByteArray data=display.read(28);if(data.size()==28){width=SywpU32(data,4);height=SywpU32(data,8);}}if(!BelleDisplay::Valid(width,height))User::Leave(KErrCorrupt);content.loadL(path);content.resumeL(QSize(width,height));}
         else{file.setFileName(path);if(!file.open(QIODevice::ReadOnly))User::Leave(KErrNotFound);QByteArray h=file.read(48);
             if(h.size()!=48||SywpU32(h,0)!=0x32565742||SywpU32(h,4)!=48)User::Leave(KErrCorrupt);
@@ -260,7 +264,7 @@ private:
         if(active){switch(state){case EPreparing:case EBinding:text=BwText("正在准备壁纸，请回到桌面并保持解锁。");break;case ERunning:text=BwText("壁纸正在运行。");break;case EPaused:text=BwText("壁纸已暂停；返回亮屏桌面并使用壁纸允许的方向后继续。");break;default:text=BwText("正在停止并恢复；请回到桌面并保持解锁。");break;}}
         else if(busy)text=BwText("正在处理壁纸，请稍候；恢复时请回到桌面。");
         else if(pending)text=BwText("桌面恢复尚未完成。请点「恢复桌面」，恢复前无法播放或导入。");
-        else {text=BwText("已停止 · 桌面可正常使用");QFile outcome("C:/data/BelleWall/candidate-last-result.txt");if(outcome.open(QIODevice::ReadOnly)&&outcome.size()<=24){bool ok=false;int error=outcome.readAll().toInt(&ok);if(ok&&error==BelleRenderReadiness::Unavailable)text=SywpError(error);else if(ok&&error<0)text=BwText("上次操作未完成（错误码 %1）。当前没有待恢复记录，可重试；若持续失败，请保存日志反馈。").arg(error);}}
+        else {text=BwText("已停止 · 桌面可正常使用");QFile outcome("C:/data/BelleWall/candidate-last-result.txt");if(outcome.open(QIODevice::ReadOnly)&&outcome.size()<=24){bool ok=false;int error=outcome.readAll().toInt(&ok);if(ok&&(error==BelleRenderReadiness::Unavailable||error==KBelleMp4Disabled))text=SywpError(error);else if(ok&&error<0)text=BwText("上次操作未完成（错误码 %1）。当前没有待恢复记录，可重试；若持续失败，请保存日志反馈。").arg(error);}}
         if(!active&&!busy&&!pending&&QFile::exists("C:/data/BelleWall/preparation-pending.bin"))text=BwText("上次组件操作未完成。请点「检查并准备组件」重试，或执行「卸载准备」；请勿手动删除记录。");
         if(active)text+=BwText("\n动态桌面运行期间，壁纸管理不可用。要更换壁纸，请先停止并恢复桌面。");
         status->setText(text);QString chosen=SywpChosen();if(chosen!=lastChosen){lastChosen=chosen;lastLabel=chosen.isEmpty()?QString():SywpLabel(chosen);}

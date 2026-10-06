@@ -43,3 +43,5 @@ node prototype/tools/bundle-release-tools.cjs build/release-1.0.0/tools-r3
 手机字符串源为 prototype/translations/phone-en.json，build.cjs 自动运行 generate-ui-strings.cjs 生成 C++ 表；translations.test.cjs 检查用户可见中文和占位符覆盖。PC 文案在 sywp-webui.html 的 zh/en 表中。
 
 1.1.1 修复候选使用 `BELLEWALL_CANDIDATE_VERSION=1.1.1` 和快照 `build/checkpoints/BelleWall-1.1.1-redraw-handshake-v1`，同样运行 build-video-candidate.cjs。全量测试设置 `BELLEWALL_PRODUCT_VERSION=1.1.1`。本轮只交付新的 injector-test.zip，PC 制作工具继续使用 1.1.0 版。新握手头 renderreadiness.h 随 renderer 源码快照保存。安装后重启手机并核对 protocol=3.1 日志，参见 [修复说明](CANDIDATE-1.1.1.md)。
+
+1.1.2 使用 `BELLEWALL_CANDIDATE_VERSION=1.1.2`，输出到 `build/checkpoints/BelleWall-1.1.2-rgb565-web-v1`。样本为七个 RGB565／网页包。测试与 PC 打包设置 `BELLEWALL_PRODUCT_VERSION=1.1.2`，使用现有 MP4V 便携 FFmpeg（输入解码继续保留），分别封装 injector-test.zip、tools-test.zip 到 `dist/test/1.1.2/`。公开转换入口拒绝 MP4 SYWP 输出，格式库保留历史 MP4 检查能力。

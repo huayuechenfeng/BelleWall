@@ -27,6 +27,14 @@ Extract the complete archive, keep the ffmpeg folder, install Node.js, then run 
 
 Use the matching 1.1.0 phone candidate for rotation, non-standard canvases and MP4. The phone installer is in the separate injector-test.zip. See [device test instructions](doc/CANDIDATE-1.1.0.md). This is a test build; hardware acceleration and sustained frame rates are unverified.
 `);
+if(process.env.BELLEWALL_PRODUCT_VERSION==='1.1.2')fs.writeFileSync(path.join(out,'README.md'),`# BelleWall 1.1.2 制作工具测试版 / Workshop test candidate
+
+完整解压后运行 Start-BelleWall.cmd，需要 Node.js，FFmpeg 已内置。支持中文／English。视频（包括 MP4 源素材）转为 RGB565 SYWP，HTML 转为网页 SYWP。手机端 MP4 压缩壁纸与对应导出已暂时关闭。
+
+Extract the full archive and run Start-BelleWall.cmd. Node.js is required; FFmpeg is included. Convert video sources, including MP4, to RGB565 SYWP, or package HTML as a web wallpaper. Compressed MP4 wallpaper export and phone playback are temporarily disabled.
+
+Phone installer / 手机安装器在单独的 injector-test.zip。[测试说明 / Test notes](doc/CANDIDATE-1.1.2.md)。
+`);
 const walk=p=>fs.readdirSync(p,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(p,e.name)):[path.join(p,e.name)]);
 for(const file of walk(ffmpeg))copy(path.relative(root,file),path.join('ffmpeg',path.relative(ffmpeg,file)));
 const files=walk(out).sort();fs.writeFileSync(path.join(out,'SHA256SUMS.txt'),files.map(f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex')+'  '+path.relative(out,f).replaceAll('\\','/')).join('\n')+'\n');

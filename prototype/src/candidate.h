@@ -54,6 +54,12 @@ static void CandidateBackupL(){
 }
 static void CandidateHalt(TAny*){if(candidate){candidate->stop=1;candidate->record.state=EStopping;}}
 #include "displaydata.h"
+static void RejectCompressedWallpaperL(){
+    RFile selected;TInt error=selected.Open(fs,_L("C:\\data\\BelleWall\\selected-wallpaper.txt"),EFileRead|EFileShareReadersOnly);
+    if(error==KErrNotFound)error=selected.Open(fs,_L("C:\\data\\BelleWall\\selected-video.txt"),EFileRead|EFileShareReadersOnly);
+    if(error==KErrNotFound)return;User::LeaveIfError(error);CleanupClosePushL(selected);TBuf8<80> id;User::LeaveIfError(selected.Read(id));CleanupStack::PopAndDestroy(&selected);
+    if(id.Length()>=4&&id.Right(4).CompareF(_L8(".mp4"))==0)User::Leave(KBelleMp4Disabled);
+}
 static void CandidatePlayL(TInt kind){
     CandidateBackupL();candidate->record.widgetIntent=1;CandidateStateL(EBinding);CandidateHelperL(_L("--candidate-attach"),candidate->record);
     RWsSession ws;User::LeaveIfError(ws.Connect());CleanupClosePushL(ws);CHWRMLight* light=CHWRMLight::NewLC();
@@ -154,7 +160,7 @@ static void CandidateCommandL(const TDesC& args){
     if(fs.Entry(KJournal,e)!=KErrNotFound||fs.Entry(KPagesJournal,e)!=KErrNotFound)User::Leave(KErrInUse);
     if(args==_L("--candidate-recover")){CleanupStack::PopAndDestroy(&lock);return;}
     if(fs.Entry(_L("C:\\data\\BelleWall\\preparation-pending.bin"),e)!=KErrNotFound)User::Leave(KErrInUse);
-    const TInt kind=args.Find(_L("--candidate-web"))==0?2:args.Find(_L("--candidate-video"))==0?1:args.Find(_L("--candidate-blocks"))==0?0:-1;if(kind<0)User::Leave(KErrArgument);
+    const TInt kind=args.Find(_L("--candidate-web"))==0?2:args.Find(_L("--candidate-video"))==0?1:args.Find(_L("--candidate-blocks"))==0?0:-1;if(kind<0)User::Leave(KErrArgument);if(kind==1)RejectCompressedWallpaperL();
     RChunk chunk;User::LeaveIfError(chunk.CreateGlobal(KCandidateChunk,sizeof(TCandidateShared),sizeof(TCandidateShared)));CleanupClosePushL(chunk);candidate=reinterpret_cast<TCandidateShared*>(chunk.Base());Mem::FillZ(candidate,sizeof(*candidate));
     TTime now;now.UniversalTime();candidate->record.magic=0x31535742;candidate->record.version=BW_RENDER_SESSION_VERSION;candidate->record.nonceLo=TUint(now.Int64());candidate->record.nonceHi=TUint(now.Int64()>>32)^User::FastCounter();candidate->record.owner=RProcess().Id().Id();candidate->record.seconds=args.Find(_L("--continuous"))!=KErrNotFound?0:args.Find(_L("--600"))!=KErrNotFound?600:60;CandidateStateL(EPreparing);
     RProcess guard;TBuf<16> token;CandidateToken(candidate->record,token);TBuf<80> command(_L("--candidate-guard "));command.Append(token);User::LeaveIfError(guard.Create(RProcess().FileName(),command));CleanupClosePushL(guard);TRequestStatus ready;guard.Rendezvous(ready);RTimer timer;User::LeaveIfError(timer.CreateLocal());CleanupClosePushL(timer);TRequestStatus timeout;timer.After(timeout,5000000);guard.Resume();User::WaitForRequest(ready,timeout);if(ready==KRequestPending){guard.Kill(KErrTimedOut);User::WaitForRequest(ready);User::Leave(KErrTimedOut);}timer.Cancel();User::WaitForRequest(timeout);CleanupStack::PopAndDestroy(&timer);User::LeaveIfError(ready.Int());CleanupStack::PopAndDestroy(&guard);

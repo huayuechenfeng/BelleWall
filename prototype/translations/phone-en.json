@@ -89,5 +89,7 @@
   "跟随系统": "System language",
   "选择界面语言": "Choose the interface language",
   "中文": "中文",
-  "桌面刷新通道未连接（错误码 -7110）。升级后请完整重启手机；若仍失败，请重新安装同版本组合包并导出诊断。": "Desktop redraw is not connected (error -7110). Restart the phone after upgrading. If this persists, reinstall the matching combined package and export diagnostics."
+  "桌面刷新通道未连接（错误码 -7110）。升级后请完整重启手机；若仍失败，请重新安装同版本组合包并导出诊断。": "Desktop redraw is not connected (error -7110). Restart the phone after upgrading. If this persists, reinstall the matching combined package and export diagnostics.",
+  "MP4 压缩壁纸暂不支持（错误码 -7111）。请用新版制作工具将原视频转换为 RGB565 SYWP；已有 MP4 壁纸仍可删除。": "Compressed MP4 wallpapers are temporarily unavailable (error -7111). Convert the source video to RGB565 SYWP with the new workshop. Existing MP4 wallpapers can still be deleted.",
+  "这个壁纸包暂不适用于当前手机。画布最多 2048 边长、100 万像素；当前支持 RGB565 和网页壁纸。": "This wallpaper is not supported on this phone. Canvas limits: 2048 per side and 1,048,576 pixels. RGB565 and web wallpapers are supported."
 }

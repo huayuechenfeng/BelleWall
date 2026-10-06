@@ -13,7 +13,7 @@ function start(port=8765,base=path.resolve(__dirname,'../../build/sywp-webui')){
   let dir,ownsBusy=true;
   try{
    const ext=url.searchParams.get('ext');if(!['mp4','webm','mov','mkv','mpkg','html'].includes(ext)||url.pathname==='/preview'&&ext!=='mpkg')throw Error('Unsupported input');
-   const options=JSON.parse(url.searchParams.get('options')||'{}');if(!options||typeof options!=='object'||Array.isArray(options))throw Error('Invalid options');dir=fs.mkdtempSync(path.join(base,'job-'));const input=path.join(dir,'input.'+ext),output=path.join(dir,'wallpaper.sywp');
+   const options=JSON.parse(url.searchParams.get('options')||'{}');if(!options||typeof options!=='object'||Array.isArray(options))throw Error('Invalid options');if(options.encoding==='mp4')throw Error('MP4 wallpaper export is temporarily disabled; use RGB565');dir=fs.mkdtempSync(path.join(base,'job-'));const input=path.join(dir,'input.'+ext),output=path.join(dir,'wallpaper.sywp');
    const fd=fs.openSync(input,'wx');let size=0;try{for await(const b of req){size+=b.length;if(size>512*1024*1024)throw Error('Upload exceeds 512 MiB');fs.writeSync(fd,b);}}finally{fs.closeSync(fd);}
    let result=output,type='application/vnd.bellewall.sywp';
    if(url.pathname==='/preview'){

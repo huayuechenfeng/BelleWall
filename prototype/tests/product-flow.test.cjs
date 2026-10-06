@@ -11,17 +11,13 @@ test('real conversion distinguishes cover crop, contain padding and stretch pixe
   fs.writeFileSync(path.join(dir,'source.ppm'),Buffer.concat([Buffer.from('P6\n16 8\n255\n'),pixels]));
   const source=path.join(dir,'source.mkv'),r=cp.spawnSync(fixtureFfmpeg,['-nostdin','-v','error','-loop','1','-i',path.join(dir,'source.ppm'),'-t','0.4','-r','10','-c:v','ffv1',source],{encoding:'utf8'});assert.equal(r.status,0,r.stderr);
   const make=(name,extra)=>{const file=path.join(dir,name+'.sywp');prepare(source,file,{width:8,height:16,frames:2,fps:10,...extra});return sywp.read(file);};
-  const left=make('left',{fit:'cover',x:0}),right=make('right',{fit:'cover',x:1}),contain=make('contain',{fit:'contain'}),stretch=make('stretch',{fit:'stretch'}),mp4=make('compressed',{encoding:'mp4'});
+  const left=make('left',{fit:'cover',x:0}),right=make('right',{fit:'cover',x:1}),contain=make('contain',{fit:'contain'}),stretch=make('stretch',{fit:'stretch'});
   const at=(p,x,y)=>p.payload.readUInt16LE((y*8+x)*2);
   assert.ok((at(left,4,8)&0xf800)>0xf000);assert.ok((at(right,4,8)&31)>28);
   assert.equal(at(contain,4,0),0);assert.notEqual(at(contain,4,8),0);assert.notEqual(at(stretch,4,0),0);
   assert.equal(contain.manifest.display.fit,'contain');assert.equal(stretch.manifest.frames,2);
-  assert.equal(mp4.manifest.container,'mp4');assert.equal(mp4.manifest.codec,'mpeg4-part2');assert.deepEqual(mp4.manifest.requiredFeatures,['video-mp4v-v1']);assert.equal(mp4.manifest.frames,2);
-  const allKey=make('all-keyframes',{encoding:'mp4',gop:1});
-  const syncFrames=p=>{const at=p.indexOf(Buffer.from('stss'));return at<0?2:p.readUInt32BE(at+8);};
-  assert.equal(syncFrames(allKey.payload),2);assert.equal(syncFrames(mp4.payload),1);
-  assert.throws(()=>make('invalid-gop',{encoding:'mp4',gop:0}),/Keyframe interval/);
-  assert.throws(()=>sywp.encode(mp4.manifest,Buffer.from(mp4.payload).fill(0,4,8)),/MP4/);
+  assert.throws(()=>make('compressed',{encoding:'mp4'}),/temporarily disabled/);
+
  }finally{clean(dir);}
 });
 function packageBytes(entry,data){const items=[['project.json',Buffer.from(JSON.stringify({file:entry,type:'scene'}))],[entry,data]],parts=[];const u32=n=>{const b=Buffer.alloc(4);b.writeUInt32LE(n);return b;},str=s=>{const b=Buffer.from(s);return Buffer.concat([u32(b.length),b]);};parts.push(str('PKGM0014'),u32(items.length));let offset=0;for(const [name,b]of items){parts.push(str(name),u32(offset),u32(b.length));offset+=b.length;}return Buffer.concat([...parts,...items.map(i=>i[1])]);}
@@ -30,6 +26,7 @@ test('WebUI previews actual MPKG video entry, preserves web title, cleans succes
  try{
   const page=await(await fetch(url)).text(),token=page.match(/'X-BelleWall-Token':'([0-9a-f]+)'/)[1],headers={'X-BelleWall-Token':token};
   const video=Buffer.alloc(24);video.writeUInt32BE(24);video.write('ftyp',4);video.write('isom',8);
+  const rejected=await fetch(url+'/convert?ext=mp4&options='+encodeURIComponent(JSON.stringify({encoding:'mp4'})),{method:'POST',headers,body:video});assert.equal(rejected.status,400);assert.match(await rejected.text(),/temporarily disabled/);
   let r=await fetch(url+'/preview?ext=mpkg',{method:'POST',headers,body:packageBytes('real.mp4',video)});assert.equal(r.status,200);assert.deepEqual(Buffer.from(await r.arrayBuffer()),video);
   r=await fetch(url+'/preview?ext=mpkg',{method:'POST',headers,body:packageBytes('scene.json',Buffer.from('{}'))});assert.equal(r.status,400);await r.text();
   r=await fetch(url+'/convert?ext=html&options='+encodeURIComponent(JSON.stringify({title:'测试时钟'})),{method:'POST',headers,body:fs.readFileSync(path.join(root,'prototype/content/clock.html'))});assert.equal(r.status,200);assert.equal(sywp.decode(Buffer.from(await r.arrayBuffer())).manifest.title,'测试时钟');
